@@ -489,10 +489,10 @@ def plotsled(meas,cube,n_params,modemed,modemax,title='',lum=False):
             label1=''
             label2=''
             label3='Total (Mode Median)'
-        dat=pyradex.pyradex(flow=1, fhigh=1600,
-                      tkin=numpy.power(10,thiscube[1]), column_density=numpy.power(10,thiscube[2]), 
+        dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                      temperature=numpy.power(10,thiscube[1]), column=numpy.power(10,thiscube[2]), 
                       collider_densities={'H2':numpy.power(10,thiscube[0])},
-                      tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+                      tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
         dat['FLUX_Kkms']*=numpy.power(10,thiscube[3])
         model1=dat['FLUX_Kkms']
         if lum: 
@@ -503,10 +503,10 @@ def plotsled(meas,cube,n_params,modemed,modemax,title='',lum=False):
         newdat=dat['FLUX_Kkms']
     
         if n_params>7:
-            dat2=pyradex.pyradex(flow=1, fhigh=1600,
-                           tkin=numpy.power(10,thiscube[5]), column_density=numpy.power(10,thiscube[6]), 
+            dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                           temperature=numpy.power(10,thiscube[5]), column=numpy.power(10,thiscube[6]), 
                            collider_densities={'H2':numpy.power(10,thiscube[4])},
-                           tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
             dat2['FLUX_Kkms']*=numpy.power(10,thiscube[7])
             model2=dat2['FLUX_Kkms']
             if lum:

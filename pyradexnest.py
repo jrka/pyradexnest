@@ -123,10 +123,10 @@ def myloglike(cube, ndim, nparams):
     # Either way, check if any optical depths are outside of our limits.
     if ndim>4:
         try:
-            dat2=pyradex.pyradex(flow=1, fhigh=1600,
-                               tkin=math.pow(10,cube[5]), column_density=math.pow(10,cube[6]), 
+            dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                               temperature=math.pow(10,cube[5]), column=math.pow(10,cube[6]), 
                                collider_densities={'H2':math.pow(10,cube[4])},
-                               tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+                               tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
             dat2['FLUX_Kkms']*=math.pow(10,cube[7])
             newdat=dat['FLUX_Kkms']+dat2['FLUX_Kkms'] # We want to compare the SUM of the components to our data.
             tauok=numpy.all([dat['TAU']<taumax,dat['TAU']>taumin,dat2['TAU']<taumax,dat2['TAU']>taumin],axis=0)
