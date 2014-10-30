@@ -11,29 +11,24 @@ Newest version:
 http://ccpforge.cse.rl.ac.uk/gf/project/multinest/
 Version compatible with current version of PyMultiNest:
 git clone https://github.com/JohannesBuchner/MultiNest.git MultiNest
+As of 10/30/14, I have been using MultiNest v3.5
 
 2) PyMultiNest
 git clone git://github.com/JohannesBuchner/PyMultiNest
 
 3) pyradex (github, Adam Ginsburg)
+https://github.com/keflavich/pyradex
+This will include an installation of radex.
 
-4) multiplot (github, Jordan Mirocha)
 
 And the aforementioned python packages, plus this folder,
  must be in your python path.
  
  ** Make sure tolerance for PyMultiNest is set such as -2e100 is not utilized in likelihood **
  
-UPDATES THAT NEED TO BE MADE TO PYRADEX.PYRADEX  BEFORE THIS WILL WORK:
-1) Return just a dictionary, not an astropy table, e.g. 
+MINIMALLY FUNCTIONAL VERSION
+Analysis scripts not done (using outdated version of multiplot by Jordan Mirocha)
 
-	data_in_floats = [map(float,col) for col in data_in_columns] #  We can get a ValueError if not floats (ie E+101)
-	data={key: np.array(value) for (key,value) in zip(header_names,data_in_floats)}
-
-2) Add to that dictionary the total luminosity.  Is this output by command line radex?
-
-	data['LogLmol']=float(Lpermol[0].split('=')[1])
- 
 ===========
 
 To run:
@@ -59,11 +54,15 @@ To run:
 -- Measured error in flux in Jy km/s
 -- Percent calibration error to add in quadrature (set to 0 if not desired).
             
-3) Setup a few things in pyradexnest.py 
+3) Create a config.py file also in that directory, with the following:
 -- Number of dimensions, n_dims: 4 for 1 component modeling, 8 for 2 component.
--- If desired, check the limits for the parameters as defined in the mycube function.
+-- If you'd like to include likelihood distributions for the line fluxes themselves, 
+   set sled_to_j as a nonzero number: you will calculate distributions for all lines up
+to and including this J_upper value.
+-- Define the "myprior" function, see example.
+-- If you'd like to normalize the marginalized distributions so peak =1, norm=True
     
 4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  mpirun -np 8 python PATH/TO/pyradexnest.py
     
-5) Analyze it.  BE IN YOUR DIRECTORY. python PATH/TO/pyradexnest_analyze.py
+5) Analyze it - not done yet.
         

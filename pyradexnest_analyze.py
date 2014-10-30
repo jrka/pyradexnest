@@ -1,21 +1,4 @@
 #
-# Be able to run this given just a directory to access with finished run inside.
-# import pymultinest
-# execfile('/arlstorage/home/student/kamenetz/ftssurvey/pymultinest/plotjrk.py')
-#
-# NO, NEW:
-# python plotjrk.py 'title'
-#
-# 7/17/13: There was an error in get_best_fit.  Fixed, also, use that
-#    for maxima in table and vertical lines.f
-# 7/18/13: Implemented upper limits.
-# 7/19/13: Now "secondary parameters" are output at the end of the cube.
-#    Remove "sec" options for binning results.
-#  8/2/13: Added mass1 (and mass2) to table output.
-#  8/9/13: Define generic plotting routines.
-# 8/12/13: Use analyze_tools.py
-# 8/20/13: Input title and basedir as sysargs.
-#
 import pymultinest
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
