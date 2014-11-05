@@ -114,6 +114,7 @@ def myloglike(cube, ndim, nparams):
         
         # Which indices are lines that we are concerned with?
         juse=np.in1d(jup1.ravel(),meas['J_up']).reshape(jup1.shape)
+        jmeas=np.in1d(jup1.ravel(),meas['J_up'][meas['flux']!=0]).reshape(jup1.shape)
         
         #dat=R(collider_densities={'h2':np.power(10,cube[0])}, temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), tbackground=2.73,species='co',deltav=1.0)
         
@@ -158,7 +159,7 @@ def myloglike(cube, ndim, nparams):
         tauok=np.all([tau1<taumax,tau1>taumin],axis=0)
     
     # Check that we have at least one line with optical depth in allowable limits.
-    if not np.any(tauok[juse]):
+    if not np.any(tauok[jmeas]):
         return -2e100
         
     # Check that we don't violate ANY line flux upper limits.
@@ -252,6 +253,7 @@ np.savetxt('prior_cube.txt',[pmin,pmax],fmt='%+.3e')
 testcube=[0.5 for i in range(n_params)]
 if n_dims==8: testcube[6]=0.3
 myprior(testcube,n_dims,n_params)
+testcube[0:3]=[0.409738141784059184E+01,0.100229192148112678E+01,0.178510175007217988E+02,-0.201515263845019099E+01]
 print myloglike(testcube,n_dims,n_params)
 
 # I prefer not to use the progress plotter.
