@@ -5,6 +5,7 @@ import numpy as np
 import pyradex as pyradex
 import cPickle as pickle
 from config import *
+import matplotlib.pyplot as plt
 
 # Run this in the output directory!  Make "chains" before running with mpi.
 if not os.path.exists("chains"): os.mkdir("chains")
@@ -15,7 +16,6 @@ def measdata_pickle(measdatafile,sled_to_j=False):
     from astropy import units as units
     import astropy.coordinates.distances as dist
     import astropy.io.ascii as ascii
-    import pprint
     
     jytocgs=1.0e-23
     top=np.genfromtxt(measdatafile,delimiter="\n",comments="#")
@@ -64,7 +64,7 @@ def measdata_pickle(measdatafile,sled_to_j=False):
     meas = {'J_up': jup, 'flux':flux, 'sigma':sigma, 
             'masscut':NCO_dv_cut, 'lengthcut': gallength, 'head':head, 'areacm':np.log10(s_area*units.pc.to('cm')**2),
             'sigmacut':3.0, 'taulimit':[-0.9,100.0], 'addmass':addmass, 'sled_to_j':sled_to_j}
-    pprint.pprint(meas)
+    print meas
     
     pickle.dump(meas, open("measdata.pkl", "wb") )
 
@@ -79,11 +79,15 @@ def myloglike(cube, ndim, nparams):
     # and use pyradex to get our model.
     # If we violate any priors, limits, or have calculation errors, return -2e100 as the likelihood.
     meas=pickle.load(open("measdata.pkl","rb"))
-    taumin=meas['taulimit'][0]#-0.9
-    taumax=meas['taulimit'][1]#100.0
-    sigmacut=meas['sigmacut']#3.0
+    taumin=meas['taulimit'][0]
+    taumax=meas['taulimit'][1]
+    sigmacut=meas['sigmacut']
     
     # First, test that the cube parameters do not violate the mass or length priors.
+    #  Warm mass cannot be greater than cold mass.
+    #  Cold temperature cannot be less than warm temperature
+    #  Total mass cannot be greater than dynamical mass limit
+    #  Neither length can be greater than the length limits
     if ndim>4:
         if cube[6]+cube[7] > cube[2]+cube[3] or \
            cube[1] > cube[5] or \
@@ -97,65 +101,68 @@ def myloglike(cube, ndim, nparams):
 
     # Call RADEX for the first component.
     try:
-        #dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
-        #                  temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
-        #                  collider_densities={'H2':np.power(10,cube[0])},
-        #                  tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
-        #dat['flux_kkms']*=np.power(10,cube[3])
+        dat1=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                          temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
+                          collider_densities={'H2':np.power(10,cube[0])},
+                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False,
+                          return_dict=True)
+        # dat['J_up'] returned as strings; this is fine for CO...
+        jup1=np.array(map(float,dat1['J_up']))
+        model1=np.array(map(float,dat1['FLUX_Kkms']))*np.power(10,cube[3])
+        tau1=np.array(map(float,dat1['TAU']))
         
-        R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[0])}, 
-             temperature=np.power(10,cube[1]), column=np.power(10,cube[2]),
-             tbackground=2.73,species='co',deltav=1.0,debug=False)
-        niter=R.run_radex(validate_colliders=False)
-        model1=1.064575*R.T_B*np.power(10,cube[3]) # Integrating over velocity, and Filling Factor
-        model1=model1.value # Hatred of units in my way
-        tau1=R.tau
-        jup1=R.upperlevelindex
-        
-        # Which indices are lines that we are concerned with?
-        juse=np.in1d(jup1.ravel(),meas['J_up']).reshape(jup1.shape)
-        jmeas=np.in1d(jup1.ravel(),meas['J_up'][meas['flux']!=0]).reshape(jup1.shape)
-        
-        #dat=R(collider_densities={'h2':np.power(10,cube[0])}, temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), tbackground=2.73,species='co',deltav=1.0)
-        
+        # At this time it is too slow to use this.
+        #R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[0])}, 
+        #     temperature=np.power(10,cube[1]), column=np.power(10,cube[2]),
+        #     tbackground=2.73,species='co',deltav=1.0,debug=False)
+        #niter=R.run_radex(validate_colliders=False)
+        #model1=1.064575*R.T_B*np.power(10,cube[3]) # Integrating over velocity, and Filling Factor
+        #model1=model1.value # Hatred of units in my way
+        #tau1=R.tau
+        #jup1=R.upperlevelindex        
         #cube[ndim]=np.sum(R.source_brightness_beta) # luminosity; not correct units yet.
-        # Need R.surface_brightness_beta() for luminosity.
         
     except:
         return -2e100
+
+    # Which indices are lines that we are concerned with?
+    juse=np.in1d(jup1.ravel(),meas['J_up']).reshape(jup1.shape)
+    jmeas=np.in1d(jup1.ravel(),meas['J_up'][meas['flux']!=0]).reshape(jup1.shape)
     
     # If applicable, call RADEX for the second component and find their sum.
     # Either way, check if any optical depths are outside of our limits.
     if ndim>4:
         try:
-            #dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
-            #                   temperature=np.power(10,cube[5]), column=np.power(10,cube[6]), 
-            #                   collider_densities={'H2':np.power(10,cube[4])},
-            #                   tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
-            #dat2['flux_kkms']*=np.power(10,cube[7])
-            #newdat=dat['flux_kkms']+dat2['flux_kkms'] # We want to compare the SUM of the components to our data.
-            #tauok=np.all([dat['tau']<taumax,dat['tau']>taumin,dat2['tau']<taumax,dat2['tau']>taumin],axis=0)
-            
-            R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[4])}, 
-             temperature=np.power(10,cube[5]), column=np.power(10,cube[6]),
-             tbackground=2.73,species='co',deltav=1.0,debug=False)
-            niter=R.run_radex(validate_colliders=False)
-            
-            model2=1.064575*R.T_B*np.power(10,cube[3])# Integrating over velocity, and Filling Factor
-            model2=model2.value
-            tau2=R.tau
-            jup2=R.upperlevelindex
-            if not np.array_equal(jup1,jup2): 
-                warnings.warn('J_up arrays NOT equal from multiple RADEX calls!')
-                return -2e100
-
-            
-            modelt=model1+model2
+            dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                               temperature=np.power(10,cube[5]), column=np.power(10,cube[6]), 
+                               collider_densities={'H2':np.power(10,cube[4])},
+                               tbg=2.73, species='co', velocity_gradient=1.0, debug=False,
+                               return_dict=True)
+            jup2=np.array(map(float,dat2['J_up']))
+            model2=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])
+            tau2=np.array(map(float,dat2['TAU']))                            
+                               
+            modelt=model1+model2# We want to compare the SUM of the components to our data.
             tauok=np.all([tau1<taumax,tau1>taumin,tau2<taumax,tau2>taumin],axis=0)
+            
+            #R.temperature=np.power(10,cube[5])
+            #R.density=np.power(10,cube[4])
+            #R.column=np.power(10,cube[6])
+            #niter=R.run_radex(validate_colliders=False)
+            
+            #model2=1.064575*R.T_B*np.power(10,cube[3])# Integrating over velocity, and Filling Factor
+            #model2=model2.value
+            #tau2=R.tau
+            #jup2=R.upperlevelindex
+            #if not np.array_equal(jup1,jup2): 
+            #    warnings.warn('J_up arrays NOT equal from multiple RADEX calls!')
+            #    return -2e100
+            #modelt=model1+model2
+            #tauok=np.all([tau1<taumax,tau1>taumin,tau2<taumax,tau2>taumin],axis=0)
         except:
             return -2e100
     else:
-        modelt=model1 # total model
+        modelt=model1# total model
         tauok=np.all([tau1<taumax,tau1>taumin],axis=0)
     
     # Check that we have at least one line with optical depth in allowable limits.
@@ -276,24 +283,25 @@ print "-" * 30, 'ANALYSIS', "-" * 30
 print "Global Evidence:\n\t%.15e +- %.15e" % ( s['global evidence'], s['global evidence error'] )
 print "Run pyradexnest_analyze.py"
 
-# Keep the basic plotting here for now, until mine is ready.
-p = pymultinest.PlotMarginalModes(a)
-plt.figure(figsize=(5*n_params, 5*n_params))
-#plt.subplots_adjust(wspace=0, hspace=0)
-for i in range(n_params):
-       plt.subplot(n_params, n_params, n_params * i + i + 1)
-       p.plot_marginal(i, with_ellipses = True, with_points = False, grid_points=50)
-       plt.ylabel("Probability")
-       plt.xlabel(parameters[i])
-       
-       for j in range(i):
-               plt.subplot(n_params, n_params, n_params * j + i + 1)
-               #plt.subplots_adjust(left=0, bottom=0, right=0, top=0, wspace=0, hspace=0)
-               p.plot_conditional(i, j, with_ellipses = False, with_points = True, grid_points=30)
-               plt.xlabel(parameters[i])
-               plt.ylabel(parameters[j])
+# Keep the basic plotting here for now, until mine is ready.  Actually, don't do 
+# the first one, there are too many parameters and the PDF will explode.
+#p = pymultinest.PlotMarginalModes(a)
+#plt.figure(figsize=(5*n_params, 5*n_params))
+##plt.subplots_adjust(wspace=0, hspace=0)
+#for i in range(n_params):
+#       plt.subplot(n_params, n_params, n_params * i + i + 1)
+#       p.plot_marginal(i, with_ellipses = True, with_points = False, grid_points=50)
+#       plt.ylabel("Probability")
+#       plt.xlabel(parameters[i])
+#       
+#       for j in range(i):
+#               plt.subplot(n_params, n_params, n_params * j + i + 1)
+#               #plt.subplots_adjust(left=0, bottom=0, right=0, top=0, wspace=0, hspace=0)
+#               p.plot_conditional(i, j, with_ellipses = False, with_points = True, grid_points=30)
+#               plt.xlabel(parameters[i])
+#               plt.ylabel(parameters[j])
+#plt.savefig("marginals_multinest.pdf") #, bbox_inches='tight')
 
-plt.savefig("marginals_multinest.pdf") #, bbox_inches='tight')
 #show("marginals_multinest.pdf")
 for i in range(n_params):
        outfile = '%s-mode-marginal-%d.pdf' % (a.outputfiles_basename,i)
