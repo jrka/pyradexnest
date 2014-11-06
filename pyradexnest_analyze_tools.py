@@ -7,11 +7,50 @@
 # JRK 10/30/13: In plot_marginal, allow overplotting of a different model for comparison,
 # parameterized by dists2 and cube2.
 
-import numpy
+import numpy as np
 import astropy.units as units
 from multiplot import multipanel
 import matplotlib.pyplot as plt
-import pyradexv3 as pyradex
+import pyradex as pyradex
+import matplotlib.mlab as mlab
+
+def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
+    # Based on the number of parameters, return the information needed for plotting.
+    # If this is a comparison, set compare=True, as this changes the colors to be used.
+
+    if n_dims==4:  # 1 component
+        parameters = ["h2den1","tkin1","cdmol1","ff1","lum1","press1","bacd1"] 
+        add=[0,0,lw,0, lw,0,lw,]
+        mult=[1,1,1,1, 1,1,1] # Multiplication is NOT something used for CO RADEX modeling.
+        colors=['b','b','b','b','b','b','b']
+        if compare: colors2=['k','k','k','k','k','k','k']
+        plotinds=[[0,1,2,3],[4,5,6]]
+        sledcolors=['b']
+        if compare: sledcolors=['#6495ED']
+    elif n_dims==8:  # 2 component
+        parameters = ["h2den1","tkin1","cdmol1","ff1",
+                      "h2den2","tkin2","cdmol2","ff2",
+                      "lum1","press1","bacd1",
+                      "lum2","press2","bacd2",
+                      "lumratio","pressratio","bacdratio"] 
+        add=[0,0,lw,0, 0,0,lw,0, lw,0,lw, lw,0,lw, 0,0,0]
+        mult=[1,1,1,1, 1,1,1,1, 1,1,1, 1,1,1, 1,1,1]
+        colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k']
+        if compare: colors=['#6495ED','#6495ED','#6495ED','#6495ED','m','m','m','m', \
+                    '#6495ED','#6495ED','#6495ED','m','m','m','gray','gray','gray']
+        plotinds=[[0,1,2,3,4,5,6,7],[8,9,10,11,12,13],[14,15,16]]
+        sledcolors=['b','r']
+        if compare: sledcolors=['#6495ED','m']
+        
+    # Add if we also have likelihoods CO fluxes, append the required information for the likelihood plot.
+    for x in range(sled_to_j): 
+        parameters.append('flux'+str(x+1))
+        add.append(0)
+        mult.append(1)
+        colors.append('m') if compare else colors.append('k')
+    plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1))
+        
+    return [parameters,add,mult,colors,plotinds,sledcolors]
 
 def post_sep(post_file):
     # Where are the blank lines in the 1-post_separate.dat file?  Note starting at 0.
@@ -25,7 +64,7 @@ def post_sep(post_file):
     breakind=[]
     for i in ind: breakind.append(blank[i]-(i))
     
-    postdat=numpy.loadtxt(post_file)
+    postdat=np.loadtxt(post_file)
     breakind.insert(0,0)
     breakind.append(len(postdat))
     nmodes=len(breakind)-1
@@ -35,9 +74,9 @@ def post_sep(post_file):
     return datsep
 
 def arrowloglen(ylim,top,frac=32.0):
-    yr=numpy.log10(ylim)
+    yr=np.log10(ylim)
     delta=(yr[1]-yr[0])/frac
-    bottom=10.0**(numpy.log10(top)-delta)
+    bottom=10.0**(np.log10(top)-delta)
     return bottom-top
 
 def bin_results(stats,data,dim1,dim2=None,grid_points=40,
@@ -56,14 +95,14 @@ def bin_results(stats,data,dim1,dim2=None,grid_points=40,
         min2 = min([mode['mean'][dim2] - 3*mode['sigma'][dim2] for mode in modes])
         max2 = max([mode['mean'][dim2] + 3*mode['sigma'][dim2] for mode in modes])
     
-    grid_x = numpy.mgrid[min1:max1:n*1j]
+    grid_x = np.mgrid[min1:max1:n*1j]
     if dim2 is not None:
         m = n
-        grid_x, grid_y = numpy.mgrid[min1:max1:n*1j, min2:max2:n*1j]
+        grid_x, grid_y = np.mgrid[min1:max1:n*1j, min2:max2:n*1j]
         binsize2 = (max2 - min2) / m
     else:
         m = 1
-        grid_x = numpy.mgrid[min1:max1:n*1j]
+        grid_x = np.mgrid[min1:max1:n*1j]
         grid_y = [0]
         
     binsize1 = (max1 - min1) / n
@@ -71,13 +110,13 @@ def bin_results(stats,data,dim1,dim2=None,grid_points=40,
     dim1_column = data[:,2 + dim1]
     if dim2 is not None:
         dim2_column = data[:,2 + dim2]
-        coords = numpy.array([dim1_column, dim2_column]).transpose()
+        coords = np.array([dim1_column, dim2_column]).transpose()
     else:
         coords = dim1_column.transpose()
     values = data[:,0]
     if use_log_values:
-        values = numpy.log(values)
-    grid_z = numpy.zeros((n,m))
+        values = np.log(values)
+    grid_z = np.zeros((n,m))
     minvalue = values.min()
     maxvalue = values.max()
     
@@ -85,15 +124,15 @@ def bin_results(stats,data,dim1,dim2=None,grid_points=40,
     for row, col in itertools.product(range(len(grid_x)), range(len(grid_y))):
         if dim2 is not None:
             xc = grid_x[row,col]
-            here_x = numpy.abs(dim1_column - xc) < binsize1 / 2.
+            here_x = np.abs(dim1_column - xc) < binsize1 / 2.
             yc = grid_y[row,col]
-            here_y = numpy.abs(dim2_column - yc) < binsize2 / 2.
+            here_y = np.abs(dim2_column - yc) < binsize2 / 2.
         else:
             xc = grid_x[row]
-            here_x = numpy.abs(dim1_column - xc) < binsize1 / 2.
+            here_x = np.abs(dim1_column - xc) < binsize1 / 2.
             here_y = True
         
-        bin = values[numpy.logical_and(here_x, here_y)]
+        bin = values[np.logical_and(here_x, here_y)]
         if bin.size != 0:
             if marginalization_type == 'max':
                 grid_z[row,col] = bin.max()
@@ -122,9 +161,15 @@ def get_dists(distfile,s,datsep,grid_points=40):
     import os
     import cPickle as pickle
     n_params=len(s['modes'][0]['mean'])
-    if os.path.exists(distfile) and os.path.getmtime(distfile) > os.path.getmtime('chains/1-.json'):
-        dists=pickle.load(open(distfile,"rb"))
+    if os.path.exists(distfile) and os.path.exists('chains/1-.json') and os.path.getmtime(distfile) > os.path.getmtime('chains/1-.json'):
+        try:
+            dists=pickle.load(open(distfile,"rb"))
+            redodists=False
+        except: 
+            redodists=True
     else:
+        redodists=True
+    if redodists:
         # We want 1D distributions for each parameter, 2D for each combination of parameters
        # The secondary paramters (luminosity, pressure, bacd) are included here.
         dists={}
@@ -133,15 +178,22 @@ def get_dists(distfile,s,datsep,grid_points=40):
             print 'Marginalizing...',key
             data=datsep[key]
             tdists={}
+            maxes=[]
             for i in range(n_params):
                 x,y,z = bin_results(s,data,i,dim2=None,grid_points=grid_points,
                                     marginalization_type='sum', only_interpolate=False)
                 z=z.reshape(grid_points)
-                tdists[i]=numpy.vstack((x,z))
+                tdists[i]=np.vstack((x,z))
+                
+                # If we are going to do normalization of multiple modes, we need to 
+                # keep the "max" of each one easily accessible here.
+                maxes.append(z.max())
+              
                 for j in range(i):
                     x,y,z = bin_results(s,data,i,dim2=j,grid_points=grid_points,
                                         marginalization_type='sum', only_interpolate=False)
-                    tdists[i,j]=numpy.dstack((x,y,z))
+                    tdists[i,j]=np.dstack((x,y,z))
+            tdists['max']=maxes
             dists[key]=tdists
         
         pickle.dump(dists, open(distfile, "wb") )
@@ -154,7 +206,11 @@ def maketables(s,n_params,parameters,cube,add,mult,title='results',addmass=0,n_d
     
     # If there are multiple modes, determine the most likely one.
     localev=[]
-    for j in s['modes']: localev.append(j['local evidence'])
+    for j in s['modes']: 
+        try:
+            localev.append(j['local evidence'])
+        except:
+            localev.append(j[u'local log-evidence'])
     maxind=localev.index(max(localev))
        
     col1=[]
@@ -179,7 +235,7 @@ def maketables(s,n_params,parameters,cube,add,mult,title='results',addmass=0,n_d
         parameters.append('mass1')
         if n_dims==8: 
             bacdinds=[parameters.index('bacd1'),parameters.index('bacd2')]
-            parameters.append('mass2')
+            parameters.append('mass2')       
  
         for bacdind in bacdinds:
             col1.append(s['marginals'][bacdind]['median']     +add[bacdind]+addmass)
@@ -195,14 +251,14 @@ def maketables(s,n_params,parameters,cube,add,mult,title='results',addmass=0,n_d
     # For the ascii file, use more digits.  And make the names be separated by spaces only.
     table.write("results_ascii.txt",format="ascii",names=('param','med','-1sig','+1sig','bestfit','modemean','modesigma','modemax'))
 
-    # But for latex, just need 2 digits.
-    table['Median'].format='%.2f' # I am aware this is stupid.
-    table['-1 Sigma'].format='%.2f'
-    table['+1 Sigma'].format='%.2f'
-    table['Best Fit'].format='%.2f'
-    table['Mode Mean'].format='%.2f'
-    table['Mode Sigma'].format='%.2f'
-    table['Mode Maximum'].format='%.2f'
+    # But for latex, just need 2 digits.  Well, for the fluxes, we'll want more, so add more...
+    table['Median'].format='%.4f' # I am aware this is stupid.
+    table['-1 Sigma'].format='%.4f'
+    table['+1 Sigma'].format='%.4f'
+    table['Best Fit'].format='%.4f'
+    table['Mode Mean'].format='%.4f'
+    table['Mode Sigma'].format='%.4f'
+    table['Mode Maximum'].format='%.4f'
     
     table.pprint()
     table.write("results_latex.tex",format="latex",caption=title.replace('_',' '))
@@ -211,44 +267,71 @@ def maketables(s,n_params,parameters,cube,add,mult,title='results',addmass=0,n_d
 ###############################################################################################
 
 def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title='',norm1=True,
-                 modecolors=['g','m','y','c'],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
-                 dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[]):
-    mp = multipanel(dims=(2,2),figID=1,padding=(0,0.2))
+                 modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
+                 dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False,meas=0):
+    import matplotlib.mlab as mlab
+    mp = multipanel(dims=(np.mod(n_dims,4)/2+2,2),figID=1,padding=(0,0.2),panel_size=(1,np.mod(n_dims,4)/2+1)) # 
     mp.title(title)
+    plt.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
     
-    for j in plotinds[0]:
-        # The filling was not adding up right; don't plot each individual mode.  FUTURE NOTE: normalization is messed up
-        # because numpy arrays are pointers, and I've modified the value of dists. 
-        for m,mode in enumerate(s['modes']):
-        #    yplot=dists[m][j][1,:]
-        #    yplot*=numpy.exp(mode['local evidence'])/numpy.exp(s['global evidence'])
-        #    if norm1: yplot/=numpy.max(dists['all'][j][1,:])
-        #    #mp.grid[numpy.mod(j,4)].plot(dists[m][j][0,:]*mult[j]+add[j],yplot,':',color=modecolors[m],label='Mode',drawstyle='steps')
-        #    dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
-        #    xx= numpy.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
-        #    yy =numpy.ravel(zip(yplot, yplot))
-        #    #mp.grid[numpy.mod(j,4)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
-        #    
-            mp.grid[numpy.mod(j,4)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
-            mp.grid[numpy.mod(j,4)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
-            mp.grid[numpy.mod(j,4)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
-            ##print mode['maximum'][j]+add[j],mode['sigma'][j]
+    gridinds=np.mod(plotinds[0],4)
+    if np.mod(n_dims,4)==2: gridinds[[-2,-1]]=[4,5]
+    
+    if dists2:
+        gridinds2=np.mod(plotinds2[0],4)
+        if np.mod(n_dims2,4)==2: gridinds2[[-2,-1]]=[4,5]
+    
+    for g,j in enumerate(plotinds[0]):      
+        if not dists2 and not simplify: # Don't do these if we are overplotting a 2nd dist, too confusing, or Simplify is set!
+            for m,mode in enumerate(s['modes']):
+                if colors[j]=='b': 
+                    modecol=[modecolors[m][0],modecolors[m][1],1]
+                elif colors[j]=='r':
+                    modecol=[1,modecolors[m][1],modecolors[m][0]]
+                elif colors[j]=='g': # Added JRK 1/23/14
+                    modecol=[modecolors[m][0],1,modecolors[m][1]]
+                elif colors[j]=='k': # Added JRK 5/17/14
+                    modecol=[modecolors[m][0],modecolors[m][0],modecolors[m][0]]
+                
+                yplot=dists[m][j][1,:]
+                dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
+                xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
+                yy =np.ravel(zip(yplot, yplot))
+                mp.grid[gridinds[g]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
+
+                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                ##print mode['maximum'][j]+add[j],mode['sigma'][j]
             
-        yplot=dists['all'][j][1,:]   # WHY DOES DISTS CHANGE SOMEWHERE HERE?
-        if norm1: yplot/=numpy.max(dists['all'][j][1,:])
-        mp.grid[numpy.mod(j,4)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-        mp.grid[numpy.mod(j,4)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
+        yplot=dists['all'][j][1,:] 
+        mp.grid[gridinds[g]].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        #mp.grid[gridinds[g]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
         
-        if dists2:
+        if parameters[j]=="beta" and n_dims > 4: # only for CO modeling 
+            xr=mp.grid[gridinds[g]].set_xlim()
+            x=np.linspace(xr[0],xr[1],100)
+            y=mlab.normpdf(x,meas['head']['beta'],meas['head']['sigma_beta'])
+            mp.grid[gridinds[g]].plot(x,y/np.max(y),'k--')
+        
+        if parameters[j]=="lambda0" and n_dims > 4:  # only for CO modeling 
+            xr=mp.grid[gridinds[g]].set_xlim()
+            x=np.linspace(xr[0],xr[1],100)
+            y=mlab.normpdf(x,meas['head']['lambda0'],meas['head']['sigma_lambda0'])
+            mp.grid[gridinds[g]].plot(x,y/np.max(y),'k--')        
+        
+        if norm1: mp.grid[gridinds[g]].set_ylim(0,1)
+        
+    if dists2:
+        for g,j in enumerate(plotinds2[0]):
             yplot2=dists2['all'][j][1,:]
-            if norm1: yplot2/=numpy.max(dists2['all'][j][1,:])
-            mp.grid[numpy.mod(j,4)].plot(dists2['all'][j][0,:]*mult[j]+add[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-            mp.grid[numpy.mod(j,4)].axvline(x=cube2[j]*mult[j]+add[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
-        
-        if norm1: mp.grid[numpy.mod(j,4)].set_ylim(0,1)
+            mp.grid[gridinds2[g]].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+            mp.grid[gridinds2[g]].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
     
-    mp.grid[0].set_ylabel("Probability")
-    mp.grid[2].set_ylabel("Probability")
+    mp.grid[0].set_ylabel("Likelihood")
+    mp.grid[2].set_ylabel("Likelihood")
+    if np.mod(n_dims,4)==2: mp.grid[4].set_ylabel("Likelihood")
     
     if parameters[0]=='h2den1': # CO likelihood
         mp.grid[0].set_xticks([2,3,4,5,6])
@@ -258,104 +341,124 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
         mp.grid[3].set_xticks([-2.5,-1.5,-0.5],minor=True)
         #[mp.grid[i].set_xlim(xrange[i]) for i in range(4)]
         [mp.grid[i].set_xlabel(nicenames[i]) for i in range(4)]
+        if np.mod(n_dims,4)==2: [mp.grid[i].set_xlabel(nicenames[i]) for i in range(4,6,1)]
     else: 
         [mp.grid[i].set_xlabel(nicenames[i]) for i in plotinds[0]]
     mp.grid[0].text(4,1,'ln(like):')
-    for m,mode in enumerate(s['modes']): mp.grid[0].text(4,0.9-0.1*m,'%.2f' % mode['local evidence'],color=modecolors[m])
+    for m,mode in enumerate(s['modes']): 
+        try:
+            mp.grid[0].text(4,0.9-0.1*m,'%.2f' % mode['local evidence'],color=[modecolors[m][0],modecolors[m][1],1])
+        except:
+            mp.grid[0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
 
     mp.fix_ticks()
     plt.savefig('fig_marginalized.png')
     print 'Saved fig_marginalized.png'
     
 def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title='',norm1=True,
-                 modecolors=['g','m','y','c'],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],meas=0):
-    mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1))
-    mp.title(title)
+                 modecolors=['g','m','y','c'],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],meas=0,
+                 dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
+                 plotinds2=0,add2=0,mult2=0,n_dims2=8,simplify=False):
+    mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # figID=2,
+    plt.clf()
+    mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # 
+    plt.subplots_adjust(bottom=0.12,left=0.06,right=0.98,top=0.88)
+    
+    if not simplify: mp.title(title)
     
     for j in plotinds[1]:        
         # The filling was not adding up right; don't plot each individual mode.
-        for m,mode in enumerate(s['modes']):
-        #    yplot=dists[m][j][1,:]
-        #    yplot*=numpy.exp(mode['local evidence'])/numpy.exp(s['global evidence'])
-        #    if norm1: yplot/=numpy.max(dists['all'][j][1,:])
-        #    #mp.grid[numpy.mod(j,4)].plot(dists[m][j][0,:]*mult[j]+add[j],yplot,':',color=modecolors[m],label='Mode',drawstyle='steps')
-        #    dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
-        #    xx= numpy.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
-        #    yy =numpy.ravel(zip(yplot, yplot))
-        #    mp.grid[numpy.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
-            
-            mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
-            mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],
-                   color=modecolors[m],label='Mode',linestyle='--')
-            mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],
-                   color=modecolors[m],label='Mode',linestyle='--')
+        
+        if not dists2 and not simplify: # Too confusing otherwise
+            for m,mode in enumerate(s['modes']):
+            #    yplot=dists[m][j][1,:]
+            #    #mp.grid[np.mod(j,4)].plot(dists[m][j][0,:]*mult[j]+add[j],yplot,':',color=modecolors[m],label='Mode',drawstyle='steps')
+            #    dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
+            #    xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
+            #    yy =np.ravel(zip(yplot, yplot))
+            #    mp.grid[np.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
+                
+                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
+                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],    
+                       color=modecolors[m],label='Mode',linestyle='--')    
+                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],
+                       color=modecolors[m],label='Mode',linestyle='--')
             
         yplot=dists['all'][j][1,:]
-        if norm1: yplot/=numpy.max(yplot)
-        mp.grid[numpy.mod(j-n_dims,3)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-        mp.grid[numpy.mod(j-n_dims,3)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j])
-        if norm1: mp.grid[numpy.mod(j-n_dims,3)].set_ylim(0,1)
+        mp.grid[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        mp.grid[np.mod(j-n_dims,3)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j])
+        if norm1: mp.grid[np.mod(j-n_dims,3)].set_ylim(0,1)   
         
         if j==n_dims:
-            ax2a=mp.grid[numpy.mod(j-n_dims,3)].twiny()
-            newx=dists['all'][j][0,:]-numpy.log10(units.solLum.to('erg/s'))
+            ax2a=mp.grid[np.mod(j-n_dims,3)].twiny()
+            newx=dists['all'][j][0,:]*mult[j]+add[j]-np.log10(units.solLum.to('erg/s'))
             ax2a.plot(newx,yplot,'-',color=colors[j], drawstyle='steps')
         
         if j==n_dims+2:
-            ax2b=mp.grid[numpy.mod(j-n_dims,3)].twiny()
-            newx=dists['all'][j][0,:]+add[j]+meas['addmass']
+            ax2b=mp.grid[np.mod(j-n_dims,3)].twiny()
+            newx=dists['all'][j][0,:]*mult[j]+add[j]+meas['addmass']
             ax2b.plot(newx,yplot,'-', color=colors[j], drawstyle='steps')
- 
+            
+    if dists2:
+        for j in plotinds2[1]:
+            yplot2=dists2['all'][j][1,:]
+
+            mp.grid[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+            mp.grid[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison') 
+    
+    mp.fix_ticks()
     # Add a secondary x-axis for BACD --> Mass
     # log(mass) = log(BACD) + log(area) + log(mu)+log(m_H2) - log(X)
     #     meas['areacm'] + meas['head']['mol_weight'] + log10(2.0*units.M_p.to('kg')/units.solMass.to('kg')) - meas['head']['abundance']
-	# Makes sure aligned
-    ax2a.set_xlim(mp.grid[0].set_xlim()-numpy.log10(units.solLum.to('erg/s')))
-    ax2a.set_xlabel(r'log(L [L$_{sol}$])')
+    # Makes sure aligned
+    ax2a.set_xlim(mp.grid[0].set_xlim()-np.log10(units.solLum.to('erg/s')))
+    ax2a.set_xlabel(r'Log Luminosity  [L$_{\odot}$]')
     ax2b.set_xlim(mp.grid[2].set_xlim()+meas['addmass'])
-    ax2b.set_xlabel(r'log(M(H$_{2}$ [M$_{sol}$])')
+    ax2b.set_xlabel(r'Log Molecular Mass [M$_{\odot}$]')
 
-    mp.grid[0].set_ylabel("Probability")       
-    [mp.grid[i-4].set_xlabel(nicenames[i]) for i in [4,5,6]]
+    mp.grid[0].set_ylabel("Relative Likelihood")       
+    [mp.grid[i-min([4,5,6]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [4,5,6]+np.mod(n_dims,4)]
 
-    mp.fix_ticks()
     plt.savefig('fig_marginalized2.png')
     print 'Saved fig_marginalized2.png'
     
-    if n_dims==8:
-        mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1))
-        mp.title(title)
+    if n_dims > 7: # JRK 1/23/14, instead of n_dims == 8
+        mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1)) #
+        if not simplify: mp.title(title)
     
         for j in plotinds[2]:
             for m,mode in enumerate(s['modes']):
                 yplot=dists[m][j][1,:]
-                yplot*=numpy.exp(mode['local evidence'])/numpy.exp(s['global evidence'])
-                if norm1: yplot/=numpy.max(dists['all'][j][1,:])
-                #mp.grid[numpy.mod(j,4)].plot(dists[m][j][0,:]*mult[j]+add[j],yplot,':',color=modecolors[m],label='Mode',drawstyle='steps')
+                #mp.grid[np.mod(j,4)].plot(dists[m][j][0,:]*mult[j]+add[j],yplot,':',color=modecolors[m],label='Mode',drawstyle='steps')
                 dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
-                xx= numpy.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
-                yy =numpy.ravel(zip(yplot, yplot))
-                mp.grid[numpy.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
-                #mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j],color=modecolors[m],label='Mode')
-                #mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]+mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
-                #mp.grid[numpy.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]-mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
+                xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
+                yy =np.ravel(zip(yplot, yplot))
+                mp.grid[np.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
+                #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j],color=modecolors[m],label='Mode')
+                #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]+mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
+                #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]-mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
             
             yplot=dists['all'][j][1,:]
-            if norm1: yplot/=numpy.max(yplot)
-            mp.grid[numpy.mod(j-n_dims,3)].plot(dists['all'][j][0,:]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-            mp.grid[numpy.mod(j-n_dims,3)].axvline(x=cube[j]+add[j],color=colors[j])
+            mp.grid[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+            mp.grid[np.mod(j-n_dims,3)].axvline(x=cube[j]+add[j],color=colors[j])
+       
+        if dists2:
+            for j in plotinds2[2]:
+                yplot2=dists2['all'][j][1,:]
+                mp.grid[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                mp.grid[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')     
 
-        mp.grid[0].set_ylabel("Probability")       
-        [mp.grid[i-7].set_xlabel(nicenames[i]) for i in [7,8,9]]
+        mp.grid[0].set_ylabel("Relative Likelihood")       
+        [mp.grid[i-min([7,8,9]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [7,8,9]+np.mod(n_dims,4)]
 
         mp.fix_ticks()
         plt.savefig('fig_marginalized2ratio.png')
-        print 'Saved fig_marginalized2ratio.png'    
-
+        print 'Saved fig_marginalized2ratio.png'  
+    
 def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
                  modecolors=['g','m','y','c']):
     import matplotlib.cm as cm
-    mp = multipanel(dims=(n_dims-1,n_dims-1),diagonal=True,figID=4,panel_size=(3,3))
+    mp = multipanel(dims=(n_dims-1,n_dims-1),figID=4,diagonal=True,panel_size=(3,3)) # 
 
     for i in plotinds[0]:
         for j in range(i):
@@ -382,8 +485,8 @@ def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicen
     for i in plotinds[0]:
         for j in range(i):
             ind=(n_dims-1) * (i-1) + j
-            mp.grid[ind].set_xlim([numpy.min(dists['all'][i,j][:,:,1]*mult[j]+add[j]),numpy.max(dists['all'][i,j][:,:,1]*mult[j]+add[j])])
-            mp.grid[ind].set_ylim([numpy.min(dists['all'][i,j][:,:,0]*mult[i]+add[i]),numpy.max(dists['all'][i,j][:,:,0]*mult[i]+add[i])])
+            mp.grid[ind].set_xlim([np.min(dists['all'][i,j][:,:,1]*mult[j]+add[j]),np.max(dists['all'][i,j][:,:,1]*mult[j]+add[j])])
+            mp.grid[ind].set_ylim([np.min(dists['all'][i,j][:,:,0]*mult[i]+add[i]),np.max(dists['all'][i,j][:,:,0]*mult[i]+add[i])])
     
     plt.legend(bbox_to_anchor=(0.,1.02,1.,0.102),loc=3)
     plt.draw()
@@ -394,11 +497,8 @@ def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicen
 def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
                  modecolors=['g','m','y','c']):
     import matplotlib.cm as cm
-    if n_dims > 7:
-        nplot=n_sec[0]-1
-    else:
-        nplot=n_sec-1
-    mp = multipanel(dims=(nplot,nplot),diagonal=True,figID=5,panel_size=(3,3))
+    nplot=n_sec[0]-1
+    mp = multipanel(dims=(nplot,nplot),figID=5,diagonal=True,panel_size=(3,3)) # 
 
     for i in plotinds[1]:
         for j in range(n_dims,i):
@@ -423,17 +523,22 @@ def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     for i in plotinds[1]:
         for j in range(n_dims,i):
             ind=(nplot) * (i-n_dims-1) + j-n_dims
-            mp.grid[ind].set_xlim([numpy.min(dists['all'][i,j][:,:,1]+add[j]),numpy.max(dists['all'][i,j][:,:,1]+add[j])])
-            mp.grid[ind].set_ylim([numpy.min(dists['all'][i,j][:,:,0]+add[i]),numpy.max(dists['all'][i,j][:,:,0]+add[i])])
+            mp.grid[ind].set_xlim([np.min(dists['all'][i,j][:,:,1]+add[j]),np.max(dists['all'][i,j][:,:,1]+add[j])])
+            mp.grid[ind].set_ylim([np.min(dists['all'][i,j][:,:,0]+add[i]),np.max(dists['all'][i,j][:,:,0]+add[i])])
             
     plt.legend(bbox_to_anchor=(0.,1.02,1.,0.102),loc=3)
     plt.draw()
 
     plt.savefig('fig_conditional2.png')
     print 'Saved fig_conditional2.png'
-
-def plotsled(meas,cube,n_params,modemed,modemax,title='',lum=False):
-    plt.figure(6)
+    
+def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',lum=False,meas2=0,cube2=[],setyr=[0,0],
+             colors=['b','r'],colors2=['#6495ED','m'],n_dims2=0,simplify=False,asymerror=0,
+             sled_to_j=0):
+    # 12/3/13: Fixed bug if meas2 and meas have different number of elements (esp. diff # of non-upper-limits).
+    # 4/2/14: Use asymerror=Table if you want to use the assymetric error regions for plotting.
+    plt.figure(6,figsize=(10,8))
+    plt.subplots_adjust(bottom=0.08,left=0.08,right=0.97,top=0.97) # LEFT 0.12 JRK 4/6/14
     plt.clf()
     plt.xlabel('Upper J')
     if lum:
@@ -441,7 +546,7 @@ def plotsled(meas,cube,n_params,modemed,modemax,title='',lum=False):
     else: 
         plt.ylabel('K (per km/s)')
     plt.yscale('log')
-    plt.title(title)
+    if not simplify: plt.title(title)
    
     # First, plot the data.
     ok=[meas['flux']!=0]
@@ -450,110 +555,363 @@ def plotsled(meas,cube,n_params,modemed,modemax,title='',lum=False):
     xplot=meas['J_up']
     yplot=meas['flux']
     yerr=meas['sigma']
+    yplot0=yplot
+    yerr0=yerr
+    
+    # Did we do optical depth corrections?  If so, plot: the data with the MEAN lambda0 and beta results AND data with the input 
+    #  lambda0 and beta, AND of course the original data.
+    if np.mod(n_dims,4)==2:
+        label=['Data (Median Corr)','Data (Input Corr)','Data (No Corr)']
+        xplot=[xplot,xplot,xplot]
+        corr1=tau_corr(meas['J_up'],modemed[n_dims-2],modemed[n_dims-1])
+        corr2=tau_corr(meas['J_up'],meas['head']['beta'],meas['head']['lambda0'])
+        yplot=[yplot/corr1,yplot/corr2,yplot]
+        yerr=[yerr/corr1,yerr/corr2,yerr]
+    else: 
+        label=['Data']
+        xplot=[xplot]
+        yplot=[yplot]
+        yerr=[yerr]
+    
+    # And if we have the SLED likelihoods... those are in plotinds[3].  ONLY for the run we are plotting... no comparison.
+    if sled_to_j:
+        sledinds=plotinds[3] if n_dims==8 else plotinds[2]
+
+        if asymerror:
+            yfill1=asymerror['-1 Sigma'][sledinds]
+            yfill2=asymerror['+1 Sigma'][sledinds]
+        else: 
+            yfill1=modemed[sledinds]-modesig[sledinds]
+            yfill2=modemed[sledinds]+modesig[sledinds]            
+        
+        # If the lower one is zero or below, the shape will come out completely wrong on this log plot.
+        yfill1[yfill1 <= 0]=1e-10
+        yfill2[yfill2 <= 0]=2e-10
+        
+        if lum:     
+            from pysurvey import spire_conversions
+            import astropy.coordinates.distances as dist
+            (yfill1,trash)=spire_conversions(yfill1,'kkms','lsol',range(1,14,1)*115.3,sr=meas['head']['omega_s'],
+                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)
+            (yfill2,trash)=spire_conversions(yfill2,'kkms','lsol',range(1,14,1)*115.3,sr=meas['head']['omega_s'],
+                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)       
+            yfill1*=meas['head']['lw']
+            yfill2*=meas['head']['lw']
+            
+        plt.fill_between(range(1,sled_to_j+1,1), yfill1, yfill2, where=yfill2>=yfill1, facecolor='gray', interpolate=True)
+    
     if lum:
         from pysurvey import spire_conversions
         import astropy.coordinates.distances as dist
         (yplot,yerr)=spire_conversions(yplot,'kkms','lsol',xplot*115.3,sr=meas['head']['omega_s'],
                               z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc,inerr=yerr)
         yplot*=meas['head']['lw']
-        yerr*=meas['head']['lw']
+        yerr*=meas['head']['lw']              
     
-    plt.errorbar(xplot[ok],yplot[ok],yerr=yerr[ok],
-                 color='black',fmt='^',linestyle='None',label='Data')
+    for j in range(len(xplot)):
+        plt.errorbar(xplot[j][ok],yplot[j][ok],yerr=yerr[j][ok],
+                 color=['black','green','purple'][j],fmt='^',linestyle='None',label=label[j])
     
-    arrlen =arrowloglen(plt.ylim(),3.0*yerr[ul]       ,frac=32.0)
-    headlen=arrowloglen(plt.ylim(),3.0*yerr[ul]+arrlen,frac=64.0)
+        arrlen =arrowloglen(plt.ylim(),3.0*yerr[j][ul]       ,frac=32.0)
+        headlen=arrowloglen(plt.ylim(),3.0*yerr[j][ul]+arrlen,frac=64.0)
     
-    for i, l in enumerate(arrlen):
-        plt.arrow(xplot[ul][i], 3.0*yerr[ul][i], 0.0*xplot[ul][i], l, 
-                  fc='black', ec='black', head_width=0.3, head_length=-headlen[i],overhang=1) 
+        for i, l in enumerate(arrlen):
+            plt.arrow(xplot[j][ul][i], 3.0*yerr[j][ul][i], 0.0*xplot[j][ul][i], l, 
+                  fc=['black','green','purple'][j], ec=['black','green','purple'][j], head_width=0.3, head_length=-headlen[i],overhang=1) 
+                  
+    if meas2: 
+        ok2=[meas2['flux']!=0]
+        ul2=[meas2['flux']==0]
+
+        xplot2=meas2['J_up']
+        yplot2=meas2['flux']
+        yerr2=meas2['sigma']
+        if lum:
+            (yplot2,yerr2)=spire_conversions(yplot2,'kkms','lsol',xplot2*115.3,sr=meas2['head']['omega_s'],
+                              z=meas2['head']['z'],dist=dist.Distance(z=meas2['head']['z']).Mpc,inerr=yerr2)
+            yplot2*=meas2['head']['lw']
+            yerr2*=meas2['head']['lw']
+    
+        plt.errorbar(xplot2[ok2],yplot2[ok2],yerr=yerr2[ok2],
+                 color='gray',fmt='o',linestyle='None',label='Comparison Data')
+    
+        arrlen2 =arrowloglen(plt.ylim(),3.0*yerr2[ul2]       ,frac=32.0)
+        headlen2=arrowloglen(plt.ylim(),3.0*yerr2[ul2]+arrlen2,frac=64.0)
+    
+        for i, l in enumerate(arrlen2):
+            plt.arrow(xplot2[ul2][i], 3.0*yerr2[ul2][i], 0.0*xplot2[ul2][i], l, 
+                      fc='gray', ec='gray', head_width=0.3, head_length=-headlen2[i],overhang=1) 
     
     # Next, plot 4DMax, then the mode, then Mode Maximum.
+    # If doing a comparison, only do 4DMax...
+    w_in=[0,1,2]
+    if meas2: w_in=[0,3]
+    if simplify and not meas2: w_in=[0]
     chisq=[]
-    for w in [0,1,2]:
+    t_n_params=n_params # Temporary n_params, incase we have to replace it with 2
+    t_n_dims=n_dims
+    t_colors=colors
+    for w in w_in:
         if w==0: 
             thiscube=cube
+            thismeas=meas
+            thisok=ok
             linestyle='-'
-            label1='Component 1'
+            label1='Component 1'  # JRK 4/6/14 'Low-Pressure', 'High-Pressure'
             label2='Component 2'
-            label3='Total (Best Fit)'
+            label3='Component 3'
+            labelT='Total (Best Fit)'
         if w==1: 
             thiscube=modemax
+            thismeas=meas
+            thisok=ok
             linestyle='--'
             label1=''
             label2=''
-            label3='Total (Mode Maximum)'
+            label3=''
+            labelT='Total (Mode Maximum)'
         if w==2: 
             thiscube=modemed
+            thismeas=meas
+            thisok=ok
             linestyle=':'
             label1=''
             label2=''
-            label3='Total (Mode Median)'
+            label3=''
+            labelT='Total (Mode Median)'
+        if w==3:
+            thiscube=cube2  
+            thismeas=meas2
+            thisok=ok2
+            linestyle='--'
+            label1=''
+            label2=''
+            lable3=''
+            labelT='Comparison Total (Best Fit)'
+            t_n_params=len(cube2)
+            t_n_dims=n_dims2
+            t_colors=colors2
+        
         dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                      temperature=numpy.power(10,thiscube[1]), column=numpy.power(10,thiscube[2]), 
-                      collider_densities={'H2':numpy.power(10,thiscube[0])},
-                      tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
-        dat['FLUX_Kkms']*=numpy.power(10,thiscube[3])
-        model1=dat['FLUX_Kkms']
+                          temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
+                          collider_densities={'H2':np.power(10,cube[0])},
+                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
+        dat['flux_kkms']*=np.power(10,thiscube[3])
+        model1=dat['flux_kkms']
+        
+        if np.mod(n_dims,4)==2: model1/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         if lum: 
-            (model1,trash)=spire_conversions(model1,'kkms','lsol',dat['J_up']*115.3,sr=meas['head']['omega_s'],
-                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)
-            model1*=meas['head']['lw']
-        plt.plot(dat['J_up'],model1,color='b',label=label1,linestyle=linestyle)
-        newdat=dat['FLUX_Kkms']
+            (model1,trash)=spire_conversions(model1,'kkms','lsol',dat['J_up']*115.3,sr=thismeas['head']['omega_s'],
+                              z=thismeas['head']['z'],dist=dist.Distance(z=thismeas['head']['z']).Mpc)
+            model1*=thismeas['head']['lw']
+        plt.plot(dat['j_up'],model1,color=t_colors[0],label=label1,linestyle=linestyle)
+        newdat=dat['flux_kkms']
     
-        if n_params>7:
-            dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                           temperature=numpy.power(10,thiscube[5]), column=numpy.power(10,thiscube[6]), 
-                           collider_densities={'H2':numpy.power(10,thiscube[4])},
-                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
-            dat2['FLUX_Kkms']*=numpy.power(10,thiscube[7])
-            model2=dat2['FLUX_Kkms']
+        if t_n_dims>7:
+            dat2=pyradex.pyradex(flow=1, fhigh=1600,
+                           tkin=np.power(10,thiscube[5]), column_density=np.power(10,thiscube[6]), 
+                           collider_densities={'H2':np.power(10,thiscube[4])},
+                           tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+            dat2['flux_kkms']*=np.power(10,thiscube[7])
+            model2=dat2['flux_kkms']
+            if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
             if lum:
-                (model2,trash)=spire_conversions(model2,'kkms','lsol',dat2['J_up']*115.3,sr=meas['head']['omega_s'],
-                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)
-                model2*=meas['head']['lw']  
-           
+                (model2,trash)=spire_conversions(model2,'kkms','lsol',dat2['J_up']*115.3,sr=thismeas['head']['omega_s'],
+                              z=thismeas['head']['z'],dist=dist.Distance(z=thismeas['head']['z']).Mpc)
+                model2*=thismeas['head']['lw']  
+
             model3=model1+model2
-            newdat=dat['FLUX_Kkms']+dat2['FLUX_Kkms']
-            
-            
-            plt.plot(dat2['J_up'],model2,color='r',label=label2,linestyle=linestyle)
-            plt.plot(dat2['J_up'],model3,color='gray',label=label3,linestyle=linestyle)
+            newdat=dat['flux_kkms']+dat2['flux_kkms']
+            plt.plot(dat2['j_up'],model2,color=t_colors[1],label=label2,linestyle=linestyle)
+            plt.plot(dat2['j_up'],model3,color='k',label=labelT,linestyle=linestyle)           
+
 
         # Calculate Chi Squared?
         # Need to match "newdat" with meas['flux']
+        if np.mod(n_dims,4)==2: newdat/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         chisq.append(0)
-        for i,tflux in enumerate(meas['flux'][ok]):
-             temp=newdat[dat['J_up'] == meas['J_up'][ok][i]]
-             #print meas['J_up'][ok][i],tflux,meas['sigma'][ok][i],temp
-             chisq[w]+=((temp-tflux)/meas['sigma'][ok][i])**2.0
+        for i,tflux in enumerate(thismeas['flux'][thisok]):
+            temp=newdat[dat['j_up'] == thismeas['J_up'][thisok][i]]
+            #print thismeas['J_up'][thisok][i],tflux,thismeas['sigma'][thisok][i],temp
+            if w==3:
+                chisq[1]+=((temp-tflux)/thismeas['sigma'][thisok][i])**2.0
+                #print temp
+            else:
+                chisq[w]+=((temp-tflux)/thismeas['sigma'][thisok][i])**2.0
+                #print temp
       
     # A bit more tweaking of the plot:
     plt.xlim([0,14])
     #plt.ylim([1e-3,1e1])
-    plt.ylim([numpy.min(yplot[yplot>0]-1.0*yerr[yplot>0]),
-              numpy.max(yplot[yplot>0]+1.0*yerr[yplot>0])])
-    yr=numpy.log10(plt.ylim())
-    for i,c in enumerate(chisq): 
-        pos=numpy.power(10,(0.2-0.05*i)*(yr[1]-yr[0])+yr[0])
-        plt.text(2,pos,c)
+    if meas2:
+        plt.ylim([np.min(np.concatenate((yplot0[yplot0>0]-1.0*yerr0[yplot0>0],yplot2[yplot2>0]-1.0*yerr2[yplot2>0]),axis=0)),
+              np.max(np.concatenate((yplot0[yplot0>0]+1.0*yerr0[yplot0>0],yplot2[yplot2>0]+1.0*yerr2[yplot2>0]),axis=0))])
+    else: 
+       plt.ylim([np.min(yplot0[yplot0>0]-1.0*yerr0[yplot0>0]),
+              np.max(yplot0[yplot0>0]+1.0*yerr0[yplot0>0])])
+    # Overrride that ylim if setyr is used.
+    if np.sum(setyr) != 0: plt.ylim(setyr)
+    yr=np.log10(plt.ylim())
+    if not simplify: # only print Chi Sq if simplify is not True.
+        for i,c in enumerate(chisq): 
+            pos=np.power(10,(0.2-0.05*i)*(yr[1]-yr[0])+yr[0])
+            plt.text(2,pos,c)
     plt.legend()
     
     plt.savefig('fig_sled.png')
     print 'Saved fig_sled.png'
     
+    ######## OPTICAL DEPTH
     plt.figure(7)
     plt.clf()
     plt.xlabel('Upper J')
     plt.ylabel('Tau')
-    plt.title(title)
+    if not simplify: plt.title(title)
 
-    plt.plot(dat['J_up'],dat['TAU'],color='b',label='Component 1')
-    if n_params>7: plt.plot(dat2['J_up'],dat2['TAU'],color='r',label='Component 2')
+    # Ugh, dat is whatever was last used, must call RADEX again...
+    thiscube=cube
+    thismeas=meas
+    
+    dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                          temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
+                          collider_densities={'H2':np.power(10,cube[0])},
+                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False)    
+    
+    if n_dims==8: dat2=pyradex.pyradex(flow=1, fhigh=1600,
+                           temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
+                           collider_densities={'H2':np.power(10,thiscube[4])},
+                           tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+    
+    plt.plot(dat['j_up'],dat['tau'],color='b',label='Component 1')
+    if n_dims==8: plt.plot(dat2['j_up'],dat2['tau'],color='r',label='Component 2')
 
     plt.xlim([0,14])
     plt.legend()
 
     plt.savefig('fig_tau.png')
     print 'Saved fig_tau.png'
+    
+    ######## EXCITATION TEMPERATURE
+    plt.figure(8)
+    plt.clf()
+    plt.xlabel('Upper J')
+    plt.ylabel('Excitation Temperature [K]')
+    if not simplify: plt.title(title)
+
+    plt.plot(dat['j_up'],dat['t_ex'],color='b',label='Component 1')
+    plt.axhline(y=np.power(10,cube[1]),color='b',linestyle='--')
+    if n_dims==8: 
+        plt.plot(dat2['j_up'],dat2['t_ex'],color='r',label='Component 2')
+        plt.axhline(y=np.power(10,cube[5]),color='r',linestyle='--')
+
+    plt.xlim([0,14])
+    #plt.ylim([0,1e3])
+    plt.legend()
+
+    plt.savefig('fig_tex.png')
+    print 'Saved fig_tex.png'
+    
+def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title='',norm1=True,
+                 modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
+                 dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0):
+    mp = multipanel(dims=(4,4),figID=9,padding=(0,0.2),panel_size=(3,3)) # 
+    mp.title(title)
+    
+    if n_dims > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
+        useind=3
+    else: 
+        useind=2
+    
+    for j in plotinds[useind]:      
+        if not dists2: # Don't do these if we are overplotting a 2nd dist, too confusing.
+            for m,mode in enumerate(s['modes']):
+                if colors[j]=='b': 
+                    modecol=[modecolors[m][0],modecolors[m][1],1]
+                elif colors[j]=='r':
+                    modecol=[1,modecolors[m][1],modecolors[m][0]]
+                elif colors[j]=='g': # Added JRK 1/23/14
+                    modecol=[modecolors[m][0],1,modecolors[m][1]]
+                elif colors[j]=='k':
+                    modecol=[modecolors[m][0],modecolors[m][0],modecolors[m][0]]
+                
+                yplot=dists[m][j][1,:]
+                dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
+                xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
+                yy =np.ravel(zip(yplot, yplot))
+                mp.grid[j-n_dims-sum(n_sec)].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m
+
+                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                ##print mode['maximum'][j]+add[j],mode['sigma'][j]
+            
+        yplot=dists['all'][j][1,:] 
+        mp.grid[j-n_dims-sum(n_sec)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        mp.grid[j-n_dims-sum(n_sec)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
+        
+        if norm1: mp.grid[j-n_dims-sum(n_sec)].set_ylim(0,1)
+        
+    if dists2:
+        if n_dims2 > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
+            useind2=3
+        else: 
+            useind2=2
+        try: 
+            for j in plotinds2[useind2]:
+                yplot2=dists2['all'][j][1,:]
+                mp.grid[j-n_dims-sum(n_sec)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                mp.grid[j-n_dims-sum(n_sec)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')          
+        except:
+            print 'No SLED distribution comparison to overplot'  
+    
+    mp.grid[0].set_ylabel("Relative Likelihood")
+    mp.grid[8].set_ylabel("Relative Likelihood")
+    
+    [mp.grid[i].set_xlabel(nicenames[i+4+3+3+np.mod(n_dims,4)]) for i in range(len(plotinds[useind]))]
+
+    mp.fix_ticks()
+    plt.savefig('fig_marginalizedsled.png')
+    print 'Saved fig_marginalizedsled.png'
+
+#####################################################################################
+def get_covariance(datsep):
+    # To find the correlation coefficients between parameters, and 
+    # get the full covariance matrix.
+    #
+    # C = ( sigma_x^2                sigma_x*sigma_y*rho_xy 
+    #       sigma_x*sigma_y*rho_xy     sigma_y^2 )
+    # R  =  (  1     rho_xy
+    #       rho_xy    1   )
+    #     
+    # Though this does over ALL parameters, keep in mind that some are LOG of a parameter.
+    # 
+    # Mode Mean: Weighted average of points in mode = Sum_i (x_i * weight_i) for all points in mode.
+    # Mode Sigma: Sqrt(weighted sample variance) = SQRT (  Sum_i (x_i^2 * weight_i) - Mean^2)
+    # Use rho_xy = ( <xy> - <x><y> ) / SQRT( (<x^2> - <x>^2)(<y^2> - <y>^2) )
+    # Columns of the data have sample probability (weight), -2*loglikehood, n samples
+    # Do for each mode, and total marginalized, just like we do the distributions.
+    print 'Finding covariance for modes: ',datsep.keys()
+    cov={}
+    n=len(datsep['all'][0])-2
+    for key in datsep.keys():
+        r_arr=np.empty([n,n])
+        c_arr=np.empty([n,n])
+        for i in range(n):
+            x=np.sum(datsep[key][:,i+2]*datsep[key][:,0])
+            x2=np.sum(np.power(datsep[key][:,i+2],2)*datsep[key][:,0])
+            sx=np.sqrt(x2 - x**2)
+            for j in range(n): # Yes, it is redundant because array is symmetric.
+                y=np.sum(datsep[key][:,j+2]*datsep[key][:,0])
+                y2=np.sum(np.power(datsep[key][:,j+2],2)*datsep[key][:,0])
+                sy=np.sqrt(y2-y**2)
+                xy=np.sum(datsep[key][:,j+2]*datsep[key][:,i+2]*datsep[key][:,0])
+                r=(xy-x*y)
+                r/=np.sqrt( (x2-x**2)*(y2-y**2))
+                r_arr[i,j]=r
+                c_arr[i,j]=r*sx*sy
+        cov[key]={}
+        cov[key]['r']=r_arr
+        cov[key]['c']=c_arr
+    
+    return cov
