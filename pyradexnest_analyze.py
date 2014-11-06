@@ -8,78 +8,70 @@ import cPickle as pickle
 import pyradex as pyradex
 from multiplot import multipanel
 from astropy.table import Table, Column
-import numpy as np
+import numpy
 import sys
 import astropy.units as units
-from pyradexnest_analyze_tools import *
-from config import *
+from analyze_tools import *
 
 #################################################################################
 
-#### LOAD THE STATS
-title=os.getcwd()
-title=title.split('/')[-1]
-
-# Total number of parameters: Dimensions, "Secondary Parameters", SLED Likelihoods
+n_dims=8
 if n_dims==8:
     n_sec=[6,3]
-    n_sled=2*sled_to_j
 else:
-    n_sec=[3]
-    n_sled=sled_to_j
-n_params =n_dims + np.sum(n_sec) + n_sled
+    n_sec=3
+#n_sec=3*(n_dims)/4 # now we also have ratio.
+n_params =n_dims + sum(n_sec)
+norm1=True
 
 meas=pickle.load(open("measdata.pkl","rb"))
-lw=np.log10(meas['head']['lw'])
+lw=numpy.log10(meas['head']['lw'])
 
 a = pymultinest.Analyzer(n_params = n_params)
 s = a.get_stats()
 data= a.get_data()
-# Check if a.post_file exists; this separates the data by mode.
-if os.path.isfile(a.post_file):
-    datsep=post_sep(a.post_file)  # Divide the "data" up by mode.
-else:
-    datsep={}
-    datsep[0]=data
+datsep=post_sep(a.post_file)  # Divide the "data" up by mode.
 datsep['all']=data
 bestfit=a.get_best_fit()
 cube=bestfit['parameters'] # The best fit is not the same as the mode, cube=s['modes'][0]['maximum']
 nmodes=len(s['modes'])
 
-#### PLOT SETTINGS
-# Get the correct plot colors, factors to add, indices to use, etc.
-[parameters,add,mult,colors,plotinds,sledcolors]=define_plotting(n_dims,n_sec,sled_to_j,lw)
-modecolors=['g','m','y','c','k','r','b']
+# Stupid to have to input n_params into Analyzer.  Overwrite.
+n_params=len(s['modes'][0]['mean'])
+
+if n_params>7:
+    parameters = ["h2den1","tkin1","cdmol1","ff1","h2den2","tkin2","cdmol2","ff2","lum1","press1","bacd1","lum2","press2","bacd2","lumratio","pressratio","bacdratio"] 
+    n_dims=8
+    n_sec=[6,3]
+    n_params =n_dims + sum(n_sec)
+    add=[0,0,lw,0, 0,0,lw,0, lw,0,lw, lw,0,lw, 0,0,0]
+    mult=[1,1,1,1, 1,1,1,1, 1,1,1, 1,1,1, 1,1,1]
+    colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k']
+    plotinds=[[0,1,2,3,4,5,6,7],[8,9,10,11,12,13],[14,15,16]]
+else:
+    parameters = ["h2den1","tkin1","cdmol1","ff1","lum1","press1","bacd1"] 
+    n_dims=4
+    n_sec=3*(n_dims)/4
+    n_params =n_dims + n_sec
+    add=[0,0,lw,0, lw,0,lw,]
+    mult=[1,1,1,1, 1,1,1]
+    colors=['b','b','b','b','b','b','b']
+    plotinds=[[0,1,2,3],[4,5,6]]
     
-nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm$^{-2}$])',r'log($\Phi$)',
+nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm$^{-2}$)',r'log($\Phi$)',
            r'log(L[erg s$^{-1}$])',r'log(Pressure [K cm$^{-2}$])',r'log(<N$_{CO}$> [cm$^{-2}$]',
            r'log(Ratio L$_{warm}$/L$_{cold}$)',r'log(Ratio P$_{warm}$/P$_{cold}$)',r'log(Ratio <N>$_{warm}$/<N>$_{cold}$)']
-if sled_to_j:
-    for x in range(sled_to_j): nicenames.append(r'Flux J='+str(x+1)+'-'+str(x)+' [K]')
+#nicenames_marg=[r'log(n$_{H2}$)',r'log(T$_{kin}$)',r'log(Pressure)',r'log(N$_{CO}$)',r'log($\Phi$)',r'log(BACD)']
+#xrange_marg=[[2,6.5],[0.7,3.5],[2.7,10],[12,19]+lw,[-3,0],[9,19]+lw]
 
-# Determine plot xrange from the prior limits.
-xrange=np.ndarray([n_dims,2])
-xrange[:,0]=0
-xrange[:,1]=1
-myprior(xrange[:,0],n_dims,n_params)
-myprior(xrange[:,1],n_dims,n_params)
-
-# Squash it down if we have 2 components.
-if n_dims==8:
-    for i in range(4):
-        xrange[i,0]=min(xrange[i,0],xrange[i+4,0])
-        xrange[i,1]=max(xrange[i,1],xrange[i+4,1])
-    xrange=xrange[0:4,:]
-
-# Add linewidth to column density range
-xrange[2,:]+=lw
+#xrange=[[2,6],[0.7,3.7],[15,18],[-3,0]] # matches M82
+xrange=[[2,6.5],[0.7,3.5],[12,19]+lw,[-3,0]] # from cube
+modecolors=['g','m','y','c','k','r','b']
 
 ######################################
 
 # If a binned pickle already exists and is more 
 #   recent than chains, use it.
-# This is because binning takes time, and you don't want to 
-# redo it if you are just replotting.
 # Otherwise, do all the binning and save it to a pickle.
 
 distfile='distributions.pkl'
@@ -89,32 +81,13 @@ dists=get_dists(distfile,s,datsep,grid_points=40)
 # Table.
 
 table=maketables(s,n_params,parameters,cube,add,mult,title=title,addmass=meas['addmass'],n_dims=n_dims)
-modemed=table['Mode Mean'][0:n_params]-add      # Mass is last; not included.
-modemax=table['Mode Maximum'][0:n_params]-add
-modesig=table['Mode Sigma'][0:n_params]
+if n_dims>7:
+    modemed=table['Mode Mean'][0:17]-add
+    modemax=table['Mode Maximum'][0:17]-add
+else:
+    modemed=table['Mode Mean'][0:7]-add
+    modemax=table['Mode Maximum'][0:7]-add
 pickle.dump(table, open('table.pkl', "wb") )
-
-
-# Could also get covariance.  Nothin' doin' with yet.
-cov=get_covariance(datsep)
-
-######################################
-# Comparisons
-# Not implemented yet.  
-#  Note you'll also add in the normalization below...
-
-######################################
-# Normalization of distributions.
-if norm1: 
-    for mode in dists.keys():
-        for p in range(n_params):
-            dists[mode][p][1,:]/=dists['all']['max'][p]
-            if mode != 'all': 
-                # Stop changing keys on me...
-                try:
-                    dists[mode][p][1,:]*=np.exp(np.array(s['modes'][mode]['local evidence']))/np.exp(s['global evidence'])
-                except:
-                    dists[mode][p][1,:]*=np.exp(np.array(s['modes'][mode][u'local log-evidence']))/np.exp(s['global evidence'])
 
 
 ######################################
@@ -125,10 +98,6 @@ doplot=True
 if doplot:
     plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,norm1=norm1,colors=colors)    
     plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,norm1=norm1,colors=colors,meas=meas)
-    
     plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)
     plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)
-    
-    plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j)
-    
-    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,colors=colors)
+    plotsled(meas,cube,n_params,modemed,modemax,title='')
