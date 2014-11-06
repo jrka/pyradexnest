@@ -96,7 +96,7 @@ pickle.dump(table, open('table.pkl', "wb") )
 
 
 # Could also get covariance.  Nothin' doin' with yet.
-cov=get_covariance(datsep)
+# cov=get_covariance(datsep)
 
 ######################################
 # Comparisons
@@ -123,8 +123,10 @@ if norm1:
 doplot=True
 # For now....
 if doplot:
-    plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,norm1=norm1,colors=colors)    
-    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,norm1=norm1,colors=colors,meas=meas)
+    plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+        xr=xrange,title=title,norm1=norm1,colors=colors)    
+    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+        xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas)
     
     plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)
     plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)

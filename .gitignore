@@ -1,6 +1,9 @@
 *.pdf
+*.png
 *.pyc
 *.pkl
 */chains/
 *radex.log
 *prior_cube.txt
+ignore
+*/results_*

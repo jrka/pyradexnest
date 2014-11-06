@@ -16,18 +16,19 @@ As of 10/30/14, I have been using MultiNest v3.5
 2) PyMultiNest
 git clone git://github.com/JohannesBuchner/PyMultiNest
 
-3) pyradex (github, Adam Ginsburg)
+3) pyradex (Adam Ginsburg)
 https://github.com/keflavich/pyradex
 This will include an installation of radex.
 
+4) multiplot (Jordan Mirocha)
+https://bitbucket.org/mirochaj/multiplot
 
-And the aforementioned python packages, plus this folder,
+
+And the aforementioned python packages, plus *this* folder,
  must be in your python path.
  
  ** Make sure tolerance for PyMultiNest is set such as -2e100 is not utilized in likelihood **
- 
-MINIMALLY FUNCTIONAL VERSION
-Analysis scripts not done (using outdated version of multiplot by Jordan Mirocha)
+ ** Luminosity not yet implemented **
 
 ===========
 
@@ -62,7 +63,6 @@ to and including this J_upper value.
 -- Define the "myprior" function, see example.
 -- If you'd like to normalize the marginalized distributions so peak =1, norm=True
     
-4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  mpirun -np 8 python PATH/TO/pyradexnest.py
+4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  mpirun -np 4 python PATH/TO/pyradexnest.py
     
 5) Analyze it - not done yet.
-        

@@ -111,6 +111,9 @@ def myloglike(cube, ndim, nparams):
         model1=np.array(map(float,dat1['FLUX_Kkms']))*np.power(10,cube[3])
         tau1=np.array(map(float,dat1['TAU']))
         
+        # Check for convergence
+        if dat1['niter']==['****']: return -2e100
+        
         # At this time it is too slow to use this.
         #R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[0])}, 
         #     temperature=np.power(10,cube[1]), column=np.power(10,cube[2]),
@@ -141,6 +144,9 @@ def myloglike(cube, ndim, nparams):
             jup2=np.array(map(float,dat2['J_up']))
             model2=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])
             tau2=np.array(map(float,dat2['TAU']))                            
+
+            # Check for convergence
+            if dat2['niter']==['****']: return -2e100
                                
             modelt=model1+model2# We want to compare the SUM of the components to our data.
             tauok=np.all([tau1<taumax,tau1>taumin,tau2<taumax,tau2>taumin],axis=0)
@@ -194,6 +200,8 @@ def myloglike(cube, ndim, nparams):
     cube[ndim+1]=cube[0]+cube[1]
     cube[ndim+2]=cube[2]+cube[3]
 
+    # Don't include sled likelihoods with bad tau.
+
     # If we have 2 components, also records those L, P, and BACD, as well
     # as ratios of the warm to cold (note these are in log, so they are differenced).
     if ndim>4:
@@ -210,7 +218,7 @@ def myloglike(cube, ndim, nparams):
         for i,l in enumerate(model2[0:meas['sled_to_j']]): cube[ndim+9+meas['sled_to_j']+i]=l
         #cube[ndim+9:]=np.append(model1[0:meas['sled_to_j']].value,model2[0:meas['sled_to_j']])
     else:
-        for i,l in enumerate(model1[0:meas['sled_to_j']]): cube[ndim+3+i]=l
+        for i,l in enumerate(model1[0:meas['sled_to_j']]): cube[ndim+3+i]=l 
         #cube[ndim+3:ndim+3+meas['sled_to_j']]=model1[0:meas['sled_to_j']].value
     
     return loglike
@@ -256,13 +264,6 @@ myprior(pmin,n_dims,n_params)
 myprior(pmax,n_dims,n_params)
 np.savetxt('prior_cube.txt',[pmin,pmax],fmt='%+.3e')
 
-# A test
-testcube=[0.5 for i in range(n_params)]
-if n_dims==8: testcube[6]=0.3
-myprior(testcube,n_dims,n_params)
-testcube[0:3]=[0.409738141784059184E+01,0.100229192148112678E+01,0.178510175007217988E+02,-0.201515263845019099E+01]
-print myloglike(testcube,n_dims,n_params)
-
 # I prefer not to use the progress plotter.
 #progress = pymultinest.ProgressPlotter(n_params = n_params); progress.start()
 #threading.Timer(4, show, ["chains/1-phys_live.points.pdf"]).start() # delayed opening # don't show 
@@ -285,7 +286,7 @@ print "Run pyradexnest_analyze.py"
 
 # Keep the basic plotting here for now, until mine is ready.  Actually, don't do 
 # the first one, there are too many parameters and the PDF will explode.
-#p = pymultinest.PlotMarginalModes(a)
+p = pymultinest.PlotMarginalModes(a)
 #plt.figure(figsize=(5*n_params, 5*n_params))
 ##plt.subplots_adjust(wspace=0, hspace=0)
 #for i in range(n_params):
