@@ -1,0 +1,6 @@
+*.pdf
+*.pyc
+*.pkl
+*/chains/
+*radex.log
+*prior_cube.txt
