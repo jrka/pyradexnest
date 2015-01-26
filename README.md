@@ -77,6 +77,16 @@ to and including this J_upper value.
 -- Define the "myprior" function, see example.
 -- If you'd like to normalize the marginalized distributions so peak =1, norm=True
     
-4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  mpirun -np 4 python PATH/TO/pyradexnest.py
+4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  
+
+```
+mpirun -np 4 python PATH/TO/pyradexnest.py
+```
+
+To run the example, for instance:
+```
+cd example_run
+mpirun -np 2 python ../pyradexnest.py
+```
     
 5) Analyze it - not done yet.

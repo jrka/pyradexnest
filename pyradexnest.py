@@ -7,6 +7,12 @@ import cPickle as pickle
 from config import *
 import matplotlib.pyplot as plt
 
+def show(filepath): 
+	""" open the output (pdf) file for the user """
+	if os.name == 'mac': subprocess.call(('open', filepath))
+	elif os.name == 'nt': os.startfile(filepath)
+	elif os.name == 'posix': subprocess.call(('open', filepath)) # JRK changed 'xdg-open' to 'open'
+
 # Run this in the output directory!  Make "chains" before running with mpi.
 if not os.path.exists("chains"): os.mkdir("chains")
 
@@ -200,7 +206,13 @@ def myloglike(cube, ndim, nparams):
     cube[ndim+1]=cube[0]+cube[1]
     cube[ndim+2]=cube[2]+cube[3]
 
-    # Don't include sled likelihoods with bad tau.
+    # Don't include sled likelihoods with bad tau - cannot NaN them :( ?
+    
+    # Watch out, in the rare chance of a ridiculous RADEX value of something E+99, 
+    #  MultiNest will print 0.XYZ+100 instead of X.YZE+99, and will not be read as float.
+    #  You've not used this value in your likelihood because tau will be wild as well.
+    model1[model1>9e98]=9e98
+    if ndim>4: model2[model2>9e98]=9e98
 
     # If we have 2 components, also records those L, P, and BACD, as well
     # as ratios of the warm to cold (note these are in log, so they are differenced).
@@ -246,7 +258,6 @@ else:
     n_dims=4
     parameters=["h2den1","tkin1","cdmol1","ff1","lum1","press1","bacd1"]
 
-
 if sled_to_j and n_dims==4: map(parameters.append,["k"+str(i) for i in range(1,sled_to_j+1)])
 if sled_to_j and n_dims==8: 
     map(parameters.append,["k"+str(i)+"c" for i in range(1,sled_to_j+1)]) # Cold
@@ -264,12 +275,13 @@ myprior(pmin,n_dims,n_params)
 myprior(pmax,n_dims,n_params)
 np.savetxt('prior_cube.txt',[pmin,pmax],fmt='%+.3e')
 
-# I prefer not to use the progress plotter.
-#progress = pymultinest.ProgressPlotter(n_params = n_params); progress.start()
-#threading.Timer(4, show, ["chains/1-phys_live.points.pdf"]).start() # delayed opening # don't show 
+# Still avoiding the progress plotter.
+#progress = pymultinest.ProgressPlotter(n_params = n_params, outputfiles_basename='chains/1-'); progress.start()
+#threading.Timer(2, show, ["chains/1-phys_live.points.pdf"]).start() # delayed opening
 # run MultiNest
-pymultinest.run(myloglike, myprior, n_dims, n_params=n_params,resume = False, verbose = True, sampling_efficiency = 0.8,
-                n_live_points = 500)
+pymultinest.run(myloglike, myprior, n_params, importance_nested_sampling = False, resume = False, 
+                verbose = True, sampling_efficiency = 'model', n_live_points = 500, 
+                outputfiles_basename='chains/1-',init_MPI=False)
 # ok, done. Stop our progress watcher
 #progress.stop()
 
