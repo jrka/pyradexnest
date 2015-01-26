@@ -14,6 +14,7 @@ Version compatible with current version of PyMultiNest:
 git clone https://github.com/JohannesBuchner/MultiNest.git MultiNest
 ```
 As of 10/30/14, I have been using MultiNest v3.5.
+Currently testing with v3.8 and the most up to date PyMultiNest as of 1/26/15.
 You will also want e.g. openmpi available before installing for parallel processing.
 
 2) PyMultiNest

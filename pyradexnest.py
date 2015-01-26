@@ -279,7 +279,7 @@ np.savetxt('prior_cube.txt',[pmin,pmax],fmt='%+.3e')
 #progress = pymultinest.ProgressPlotter(n_params = n_params, outputfiles_basename='chains/1-'); progress.start()
 #threading.Timer(2, show, ["chains/1-phys_live.points.pdf"]).start() # delayed opening
 # run MultiNest
-pymultinest.run(myloglike, myprior, n_params, importance_nested_sampling = False, resume = False, 
+pymultinest.run(myloglike, myprior, n_dims, n_params=n_params, importance_nested_sampling = False, resume = False, 
                 verbose = True, sampling_efficiency = 'model', n_live_points = 500, 
                 outputfiles_basename='chains/1-',init_MPI=False)
 # ok, done. Stop our progress watcher
