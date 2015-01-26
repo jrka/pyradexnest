@@ -4,7 +4,7 @@ pyradexnest
 Use Pymultinest, Multinest, and Pyradex to fit spectral energy line distributions and plot the results.
 
 ===========
-You need:
+## You need:
 
 1) Multinest
 Newest version:
@@ -46,8 +46,7 @@ And the aforementioned python packages, plus *this* folder,
  ** Luminosity not yet implemented **
 
 ===========
-
-To run:
+## To run:
 
 1) Enter the directory of your run.  (e.g. example_run)
 
@@ -91,3 +90,22 @@ mpirun -np 2 python ../pyradexnest.py
 ```
     
 5) Analyze it - not done yet.
+
+===========
+## FAQ... preliminary
+
+1) How long does it take?  
+
+This varies.  I recently ran the following (Mac OS X v10.9.5, 3.2 GHz Intel Core i5, 32 GB RAM):
+1 component, without MPI, 10 minutes
+
+If you've left a simulation running while you 
+were away, you can check how long it took by comparing the modification time of measdata.pkl 
+(written at the start of the program) and that of most things in the chains folder, e.g. 1-stats.dat, 
+which is last modified when it finished.
+
+2) How is the redshift used?
+
+The redshift is used in the conversion from Jy km/s to K, though this will make very little difference 
+at low redshifts.  The most important use of the redshift is to determine an angular size scale 
+to convert the area from sr to physical area (e.g. pc^2), which is necessary for calculating the mass.
