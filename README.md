@@ -10,11 +10,25 @@ You need:
 Newest version:
 http://ccpforge.cse.rl.ac.uk/gf/project/multinest/
 Version compatible with current version of PyMultiNest:
+```
 git clone https://github.com/JohannesBuchner/MultiNest.git MultiNest
-As of 10/30/14, I have been using MultiNest v3.5
+```
+As of 10/30/14, I have been using MultiNest v3.5.
+You will also want e.g. openmpi available before installing for parallel processing.
 
 2) PyMultiNest
 git clone git://github.com/JohannesBuchner/PyMultiNest
+
+New users of this code: make sure you have the previous two components 
+working together nicely before proceeding, e.g. you can run 
+
+```
+python pymultinest_demo.py 
+```
+and ideally
+```
+mpirun -np 2 python pymultinest_demo.py
+```
 
 3) pyradex (Adam Ginsburg)
 https://github.com/keflavich/pyradex

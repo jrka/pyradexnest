@@ -27,6 +27,13 @@ def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
         plotinds=[[0,1,2,3],[4,5,6]]
         sledcolors=['b']
         if compare: sledcolors=['#6495ED']
+        # Add if we also have likelihoods CO fluxes, append the required information for the likelihood plot.
+        for x in range(sled_to_j): 
+            parameters.append('flux'+str(x+1))
+            add.append(0)
+            mult.append(1)
+            colors.append('#6495ED') if compare else colors.append('k')
+        plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1))
     elif n_dims==8:  # 2 component
         parameters = ["h2den1","tkin1","cdmol1","ff1",
                       "h2den2","tkin2","cdmol2","ff2",
@@ -41,14 +48,18 @@ def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
         plotinds=[[0,1,2,3,4,5,6,7],[8,9,10,11,12,13],[14,15,16]]
         sledcolors=['b','r']
         if compare: sledcolors=['#6495ED','m']
-        
-    # Add if we also have likelihoods CO fluxes, append the required information for the likelihood plot.
-    for x in range(sled_to_j): 
-        parameters.append('flux'+str(x+1))
-        add.append(0)
-        mult.append(1)
-        colors.append('m') if compare else colors.append('k')
-    plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1))
+        # Add if we also have likelihoods CO fluxes, append the required information for the likelihood plot.
+        for x in range(sled_to_j): 
+            parameters.append('flux'+str(x+1)+'c')
+            add.append(0)
+            mult.append(1)
+            colors.append('#6495ED') if compare else colors.append('b')
+        for x in range(sled_to_j): 
+            parameters.append('flux'+str(x+1)+'w')
+            add.append(0)
+            mult.append(1)
+            colors.append('m') if compare else colors.append('r')      
+        plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+2*sled_to_j,1))
         
     return [parameters,add,mult,colors,plotinds,sledcolors]
 
@@ -586,9 +597,15 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
                               z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)       
             yfill1*=meas['head']['lw']
             yfill2*=meas['head']['lw']
-            
-        plt.fill_between(range(1,sled_to_j+1,1), yfill1, yfill2, where=yfill2>=yfill1, facecolor='gray', interpolate=True)
-    
+        
+        if n_dims==4:    
+            plt.fill_between(range(1,sled_to_j+1,1), yfill1, yfill2, where=yfill2>=yfill1, facecolor='gray', interpolate=True)
+        else:
+            plt.fill_between(range(1,sled_to_j+1,1), yfill1[0:sled_to_j], yfill2[0:sled_to_j], 
+                where=yfill2[0:sled_to_j]>=yfill1[0:sled_to_j], facecolor='b', interpolate=True,alpha=0.2)
+            plt.fill_between(range(1,sled_to_j+1,1), yfill1[sled_to_j:], yfill2[sled_to_j:], 
+                where=yfill2[sled_to_j:]>=yfill1[sled_to_j:], facecolor='r', interpolate=True,alpha=0.2)
+
     if lum:
         from pysurvey import spire_conversions
         import astropy.coordinates.distances as dist
@@ -697,10 +714,10 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         newdat=dat['flux_kkms']
     
         if t_n_dims>7:
-            dat2=pyradex.pyradex(flow=1, fhigh=1600,
-                           tkin=np.power(10,thiscube[5]), column_density=np.power(10,thiscube[6]), 
+            dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                           temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
             dat2['flux_kkms']*=np.power(10,thiscube[7])
             model2=dat2['flux_kkms']
             if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
@@ -766,13 +783,13 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
                           collider_densities={'H2':np.power(10,cube[0])},
                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)    
     
-    if n_dims==8: dat2=pyradex.pyradex(flow=1, fhigh=1600,
+    if n_dims==8: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, molecule='co', velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
     
-    plt.plot(dat['j_up'],dat['tau'],color='b',label='Component 1')
-    if n_dims==8: plt.plot(dat2['j_up'],dat2['tau'],color='r',label='Component 2')
+    plt.plot(dat['j_up'],dat['tau'],color=colors[0],label='Component 1')
+    if n_dims==8: plt.plot(dat2['j_up'],dat2['tau'],color=colors[1],label='Component 2')
 
     plt.xlim([0,14])
     plt.legend()
@@ -787,11 +804,11 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     plt.ylabel('Excitation Temperature [K]')
     if not simplify: plt.title(title)
 
-    plt.plot(dat['j_up'],dat['t_ex'],color='b',label='Component 1')
-    plt.axhline(y=np.power(10,cube[1]),color='b',linestyle='--')
+    plt.plot(dat['j_up'],dat['t_ex'],color=colors[0],label='Component 1')
+    plt.axhline(y=np.power(10,cube[1]),color=colors[0],linestyle='--')
     if n_dims==8: 
-        plt.plot(dat2['j_up'],dat2['t_ex'],color='r',label='Component 2')
-        plt.axhline(y=np.power(10,cube[5]),color='r',linestyle='--')
+        plt.plot(dat2['j_up'],dat2['t_ex'],color=colors[1],label='Component 2')
+        plt.axhline(y=np.power(10,cube[5]),color=colors[1],linestyle='--')
 
     plt.xlim([0,14])
     #plt.ylim([0,1e3])
@@ -811,9 +828,19 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
         useind=2
     
     sled_to_j=len(plotinds[useind])
+    if n_dims==8: sled_to_j=sled_to_j/2
     dims=np.array((np.ceil(np.sqrt(sled_to_j)),np.ceil(sled_to_j/np.ceil(np.sqrt(sled_to_j)))))
     mp = multipanel(dims=dims.astype(int),figID=9,padding=(0,0.2),panel_size=dims.astype(int)) # 
     mp.title(title,xy=(0.5,0.97))
+    
+    gridinds=np.mod(range(sled_to_j),dims[0].astype(int)) # wow, seriously...
+    count=dims[1]-1
+    for i in range(dims[1].astype(int)):
+        print i,count,row
+        gridinds[i*dims[0]:dims[0]+i*dims[0]]+=count*dims[0]
+        count-=1
+    if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
+    
     
     for j in plotinds[useind]:      
         if not dists2: # Don't do these if we are overplotting a 2nd dist, too confusing.
@@ -831,18 +858,18 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
                 dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
                 xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
                 yy =np.ravel(zip(yplot, yplot))
-                mp.grid[j-n_dims-sum(n_sec)].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m
+                mp.grid[gridinds[j]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m
 
-                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
-                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
-                mp.grid[j-n_dims-sum(n_sec)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
                 ##print mode['maximum'][j]+add[j],mode['sigma'][j]
-            
+           
         yplot=dists['all'][j][1,:] 
-        mp.grid[j-n_dims-sum(n_sec)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-        mp.grid[j-n_dims-sum(n_sec)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
+        mp.grid[gridinds[j]].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        mp.grid[gridinds[j]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
         
-        if norm1: mp.grid[j-n_dims-sum(n_sec)].set_ylim(0,1)
+        if norm1: mp.grid[gridinds[j]].set_ylim(0,1)
         
     if dists2:
         if n_dims2 > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
@@ -852,8 +879,8 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
         try: 
             for j in plotinds2[useind2]:
                 yplot2=dists2['all'][j][1,:]
-                mp.grid[j-n_dims-sum(n_sec)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-                mp.grid[j-n_dims-sum(n_sec)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')          
+                mp.grid[gridinds[j]].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                mp.grid[gridinds[j]].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')          
         except:
             print 'No SLED distribution comparison to overplot'  
     
