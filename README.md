@@ -40,7 +40,7 @@ https://bitbucket.org/mirochaj/multiplot
 
 
 And the aforementioned python packages, plus *this* folder,
- must be in your python path.
+ must be in your python path.  You also need astropy and matplotlib.
  
  ** Make sure tolerance for PyMultiNest is set such as -2e100 is not utilized in likelihood **
  ** Luminosity not yet implemented **
@@ -61,7 +61,7 @@ And the aforementioned python packages, plus *this* folder,
 -- mu
 -- Maximum length (pc)
 - A table with 7 columns:
--- Molecule (must all be the same for now, and correspond to the Molecule.dat file) And in fact, this only works for CO for now.
+-- Molecule (must all be the same for now, and correspond to the molecule.dat filename.)
 -- J_upper
 -- J_lower
 -- Observed frequency (GHz)
@@ -86,7 +86,7 @@ mpirun -np 4 python PATH/TO/pyradexnest.py
 To run the example, for instance:
 ```
 cd example_run
-mpirun -np 2 python ../pyradexnest.py
+mpirun -np 4 python ../pyradexnest.py
 ```
     
 5) Analyze it - not done yet.
@@ -98,6 +98,7 @@ mpirun -np 2 python ../pyradexnest.py
 
 This varies.  I recently ran the following (Mac OS X v10.9.5, 3.2 GHz Intel Core i5, 32 GB RAM):
 1 component, without MPI, 10 minutes
+2 components, mpirun -np 4, 1 hour
 
 If you've left a simulation running while you 
 were away, you can check how long it took by comparing the modification time of measdata.pkl 
@@ -109,3 +110,9 @@ which is last modified when it finished.
 The redshift is used in the conversion from Jy km/s to K, though this will make very little difference 
 at low redshifts.  The most important use of the redshift is to determine an angular size scale 
 to convert the area from sr to physical area (e.g. pc^2), which is necessary for calculating the mass.
+
+3) a) Which molecules can I use?  b) Why do you list the molecule on every line, instead of once, if it always has to be the same?
+
+a) Any molecule that RADEX can handle where transitions are uniquely described by J_upper.  
+b) Because this same format of file was used with a code that could do multiple molecules, and 
+this may be added in the future to this code.

@@ -701,7 +701,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
+                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
         dat['flux_kkms']*=np.power(10,thiscube[3])
         model1=dat['flux_kkms']
         
@@ -717,7 +717,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
             dat2['flux_kkms']*=np.power(10,thiscube[7])
             model2=dat2['flux_kkms']
             if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
@@ -781,12 +781,12 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False)    
+                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)    
     
     if n_dims==8: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species='co', velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
     
     plt.plot(dat['j_up'],dat['tau'],color=colors[0],label='Component 1')
     if n_dims==8: plt.plot(dat2['j_up'],dat2['tau'],color=colors[1],label='Component 2')

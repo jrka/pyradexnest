@@ -29,6 +29,13 @@ def measdata_pickle(measdatafile,sled_to_j=False):
     
     data=ascii.read(measdatafile,delimiter='\s',comment='#',guess=False,Reader=ascii.NoHeader,data_start=8,
     names=['mol','J_up','J_lo','freq','FLUX_Jykms','measerr','calerr'])
+    
+    # Add the molecule name to the header.  ONE MOLECULE FOR THIS.  JRK 1/28/15
+    if len(set(data['mol'])) != 1:
+        raise Exception('This routine only set to run ONE molecule at a time; check your measdata.txt file.')
+    else:
+        head['mol']=data['mol'][0].lower()
+    
     # Convert to K from Jy km/s (including dividing by linewidth), and ditch the astropy table.
     flux=np.array( (const.c.to('cm/s')/(data['freq']*1e9))**2/(2.0*const.k_B.to('erg/K')))
     flux*=(data['FLUX_Jykms']*jytocgs)/head['omega_s'] * (1.0+head['z'])/head['mag']
@@ -110,7 +117,7 @@ def myloglike(cube, ndim, nparams):
         dat1=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species='co', velocity_gradient=1.0, debug=False,
+                          tbg=2.73, species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                           return_dict=True)
         # dat['J_up'] returned as strings; this is fine for CO...
         jup1=np.array(map(float,dat1['J_up']))
@@ -123,7 +130,7 @@ def myloglike(cube, ndim, nparams):
         # At this time it is too slow to use this.
         #R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[0])}, 
         #     temperature=np.power(10,cube[1]), column=np.power(10,cube[2]),
-        #     tbackground=2.73,species='co',deltav=1.0,debug=False)
+        #     tbackground=2.73,species=meas['head']['mol'],deltav=1.0,debug=False)
         #niter=R.run_radex(validate_colliders=False)
         #model1=1.064575*R.T_B*np.power(10,cube[3]) # Integrating over velocity, and Filling Factor
         #model1=model1.value # Hatred of units in my way
@@ -145,7 +152,7 @@ def myloglike(cube, ndim, nparams):
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                                temperature=np.power(10,cube[5]), column=np.power(10,cube[6]), 
                                collider_densities={'H2':np.power(10,cube[4])},
-                               tbg=2.73, species='co', velocity_gradient=1.0, debug=False,
+                               tbg=2.73, species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                                return_dict=True)
             jup2=np.array(map(float,dat2['J_up']))
             model2=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])
