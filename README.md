@@ -50,32 +50,34 @@ And the aforementioned python packages, plus *this* folder,
 
 1) Enter the directory of your run.  (e.g. example_run)
 
-2) Create a file which contains the data for fitting.  Its name needs to be measdata.txt, in the example_run folder. Format of this file:
--8 lines of header information:
--- Beam or source area in steradians
--- Redshift
--- Magnification
--- Linewidth in km/s
--- CO/H2 relative abundance
--- Maximum dynamical mass (solar masses)
--- mu
--- Maximum length (pc)
+2) Create a file which contains the data for fitting.  Its name needs to be measdata.txt, in the example_run folder. 
+Format of this file:
+
+- 8 lines of header information:
+    - Beam or source area in steradians
+    - Redshift
+    - Magnification
+    - Linewidth in km/s
+    - CO/H2 relative abundance
+    - Maximum dynamical mass (solar masses)
+    - mu
+    - Maximum length (pc)
 - A table with 7 columns:
--- Molecule (must all be the same for now, and correspond to the molecule.dat filename.)
--- J_upper
--- J_lower
--- Observed frequency (GHz)
--- Integrated flux in Jy km/s
--- Measured error in flux in Jy km/s
--- Percent calibration error to add in quadrature (set to 0 if not desired).
+    - Molecule (must all be the same for now, and correspond to the molecule.dat filename.)
+    - J_upper
+    - J_lower
+    - Observed frequency (GHz)
+    - Integrated flux in Jy km/s
+    - Measured error in flux in Jy km/s
+    - Percent calibration error to add in quadrature (set to 0 if not desired).
             
 3) Create a config.py file also in that directory, with the following:
--- Number of dimensions, n_dims: 4 for 1 component modeling, 8 for 2 component.
--- If you'd like to include likelihood distributions for the line fluxes themselves, 
+- Number of dimensions, n_dims: 4 for 1 component modeling, 8 for 2 component.
+- If you'd like to include likelihood distributions for the line fluxes themselves, 
    set sled_to_j as a nonzero number: you will calculate distributions for all lines up
 to and including this J_upper value.
--- Define the "myprior" function, see example.
--- If you'd like to normalize the marginalized distributions so peak =1, norm=True
+- Define the "myprior" function, see example.
+- If you'd like to normalize the marginalized distributions so peak =1, norm=True
     
 4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  
 
@@ -89,7 +91,31 @@ cd example_run
 mpirun -np 4 python ../pyradexnest.py
 ```
     
-5) Analyze it - not done yet.
+5) Analyze it. While still in your same working directory, run pyradexnest_analyze.py
+```
+cd example_run
+python ../pyradexnest_analyze.py
+```
+
+This creates:
+
+- distributions.pkl (Not created each time.)
+- Multiple .png figures:
+    - fig_conditional.png
+    - fig_conditional2.png
+    - fig_marginalized.png
+    - fig_marginalized2.png
+    - fig_marginalized2ratio.png (if multiple components)
+    - fig_margalinzedsled.png (if sled_to_j nonzero)
+    - fig_sled.png
+    - fig_tau.png
+    - fig_tex.png
+- Two results tables:
+    - results_ascii.txt
+    - results_latex.tex
+
+You can combine these files using the template summary_indv.tex.
+
 
 ===========
 ## FAQ... preliminary
