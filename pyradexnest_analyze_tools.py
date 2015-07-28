@@ -6,6 +6,9 @@
 # JRK 8/22/13: Fixed plotconditional2 and plotsledto work properly for 1 component modeling.
 # JRK 10/30/13: In plot_marginal, allow overplotting of a different model for comparison,
 # parameterized by dists2 and cube2.
+# JRK 7/28/15: Do not use the multiplot.multipanel package anymore for 
+# plotmarginal, plotmarginal2, and plotmarginalsled. Instead use subplots in matplotlib.
+# Still used in plotconditional and plotconditional2.
 
 import numpy as np
 import astropy.units as units
@@ -283,18 +286,23 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
                  plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False,meas=0):
     import matplotlib.mlab as mlab
-    mp = multipanel(dims=(np.mod(n_dims,4)/2+2,2),figID=1,padding=(0,0.2),panel_size=(1,np.mod(n_dims,4)/2+1)) # 
-    if not simplify: mp.title(title, xy=(0.5, 0.97))
-    plt.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    #mp = multipanel(dims=(np.mod(n_dims,4)/2+2,2),figID=1,padding=(0,0.2),panel_size=(1,np.mod(n_dims,4)/2+1)) # 
+    #if not simplify: mp.title(title, xy=(0.5, 0.97))
+    nx=2
+    ny=np.mod(n_dims,4)/2+2
+    f, axarr=plt.subplots(ny,nx,num=1,sharey=True,figsize=(4*nx,4*ny))
+    f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    f.subplots_adjust(wspace=0.1)
+    if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
     
-    gridinds=[2,3,0,1]
-    if n_dims==8: gridinds=[2,3,0,1,2,3,0,1]  # multiplot is now different indices...
+    #gridinds=[2,3,0,1]
+   #if n_dims==8: gridinds=[2,3,0,1,2,3,0,1]  # multiplot is now different indices...
+    #f dists2:
+    #    gridinds=[2,3,0,1]
+    #    if n_dims2==8: gridinds=[2,3,0,1,2,3,0,1]  # multiplot is now different indices...
     
-    if dists2:
-        gridinds=[2,3,0,1]
-        if n_dims2==8: gridinds=[2,3,0,1,2,3,0,1]  # multiplot is now different indices...
-    
-    for g,j in enumerate(plotinds[0]):      
+    for g,j in enumerate(plotinds[0]):   
+        gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)
         if not dists2 and not simplify: # Don't do these if we are overplotting a 2nd dist, too confusing, or Simplify is set!
             for m,mode in enumerate(s['modes']):
                 if colors[j]=='b': 
@@ -310,41 +318,46 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
                 dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
                 xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
                 yy =np.ravel(zip(yplot, yplot))
-                mp.grid[gridinds[g]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
-
-                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
-                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
-                mp.grid[gridinds[g]].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                
+                #mp.grid[gridinds[g]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
+                axarr[gridinds].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
                 ##print mode['maximum'][j]+add[j],mode['sigma'][j]
             
         yplot=dists['all'][j][1,:] 
-        mp.grid[gridinds[g]].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        axarr[gridinds].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
         #mp.grid[gridinds[g]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
       
     # Comparison distributions overplotted.  
     if dists2:
         for g,j in enumerate(plotinds2[0]):
+            gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)   
             yplot2=dists2['all'][j][1,:]
-            mp.grid[gridinds2[g]].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-            mp.grid[gridinds2[g]].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
+            axarr[gridinds].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+            axarr[gridinds].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
     
     # Ranges and labels
-    mp.fix_ticks()
-    mp.grid[0].set_ylabel("Likelihood")
-    mp.grid[2].set_ylabel("Likelihood")
+    #mp.fix_ticks()
+    axarr[0][0].set_ylabel("Likelihood")
+    axarr[1][0].set_ylabel("Likelihood")
     for i in range(4):
-        mp.grid[gridinds[i]].set_xlabel(nicenames[i])  # x-axis labels
-        mp.grid[gridinds[i]].set_xlim(xr[i])           # x-axis ranges.
-        if norm1: mp.grid[gridinds[g]].set_ylim(0,1)   # y-axis ranges
+        gridinds=np.floor((i)/nx),np.mod(i,nx)   
+        axarr[gridinds].set_xlabel(nicenames[i])  # x-axis labels
+        axarr[gridinds].set_xlim(xr[i])           # x-axis ranges.
+        if norm1: axarr[gridinds].set_ylim(0,1)   # y-axis ranges
         
-    mp.grid[0].text(4,1,'ln(like):')
+    axarr[0][0].annotate('ln(like):',xy=(0.8,0.9),xycoords='axes fraction')
     for m,mode in enumerate(s['modes']): 
         try:
-            mp.grid[0].text(4,0.9-0.1*m,'%.2f' % mode['local evidence'],color=[modecolors[m][0],modecolors[m][1],1])
+            axarr[0][0].annotate('%.2f' % mode['local evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+            #axarr[0][0].text(4,0.9-0.1*m,,color=[modecolors[m][0],modecolors[m][1],1])
         except:
-            mp.grid[0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
+            axarr[0][0].annotate('%.2f' % mode['local log-evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+            #axarr[0][0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
 
-    mp.draw()
+    plt.draw()
     plt.savefig('fig_marginalized.png')
     print 'Saved fig_marginalized.png'
     
@@ -353,16 +366,22 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
                  modecolors=['g','m','y','c'],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],meas=0,
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
                  plotinds2=0,add2=0,mult2=0,n_dims2=8,simplify=False):
-    mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # figID=2,
-    plt.clf()
-    mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # 
-    plt.subplots_adjust(bottom=0.12,left=0.06,right=0.98,top=0.88)
     
-    if not simplify: mp.title(title, xy=(0.5, 0.97))
+    #mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # figID=2,
+    #plt.clf()
+    #mp=multipanel(dims=(1,3),figID=2,padding=(0,0),panel_size=(3,1)) # 
+    #plt.subplots_adjust(bottom=0.12,left=0.06,right=0.98,top=0.88)
+    #if not simplify: mp.title(title, xy=(0.5, 0.97))
+    nx=3
+    ny=1
+    f, axarr=plt.subplots(ny,nx,num=2,sharey=True,figsize=(4*nx,4*ny))
+    f.subplots_adjust(bottom=0.12,left=0.06,right=0.98,top=0.88)
+    f.subplots_adjust(wspace=0.1)
+    if not simplify: axarr[1].set_title(title)    
+    
     
     for j in plotinds[1]:        
         # The filling was not adding up right; don't plot each individual mode.
-        
         if not dists2 and not simplify: # Too confusing otherwise
             for m,mode in enumerate(s['modes']):
             #    yplot=dists[m][j][1,:]
@@ -372,24 +391,24 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
             #    yy =np.ravel(zip(yplot, yplot))
             #    mp.grid[np.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
                 
-                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
-                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],    
+                axarr[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
+                axarr[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],    
                        color=modecolors[m],label='Mode',linestyle='--')    
-                mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],
+                axarr[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],
                        color=modecolors[m],label='Mode',linestyle='--')
             
         yplot=dists['all'][j][1,:]
-        mp.grid[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-        mp.grid[np.mod(j-n_dims,3)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j])
-        if norm1: mp.grid[np.mod(j-n_dims,3)].set_ylim(0,1)   
+        axarr[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        axarr[np.mod(j-n_dims,3)].axvline(x=cube[j]*mult[j]+add[j],color=colors[j])
+        if norm1: axarr[np.mod(j-n_dims,3)].set_ylim(0,1)   
         
         if j==n_dims:
-            ax2a=mp.grid[np.mod(j-n_dims,3)].twiny()
+            ax2a=axarr[np.mod(j-n_dims,3)].twiny()
             newx=dists['all'][j][0,:]*mult[j]+add[j]-np.log10(units.solLum.to('erg/s'))
             ax2a.plot(newx,yplot,'-',color=colors[j], drawstyle='steps')
         
         if j==n_dims+2:
-            ax2b=mp.grid[np.mod(j-n_dims,3)].twiny()
+            ax2b=axarr[np.mod(j-n_dims,3)].twiny()
             newx=dists['all'][j][0,:]*mult[j]+add[j]+meas['addmass']
             ax2b.plot(newx,yplot,'-', color=colors[j], drawstyle='steps')
             
@@ -397,32 +416,36 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
         for j in plotinds2[1]:
             yplot2=dists2['all'][j][1,:]
 
-            mp.grid[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-            mp.grid[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison') 
+            axarr[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+            axarr[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison') 
     
     # Ranges and labels
-    mp.fix_ticks()
-    mp.grid[0].set_ylabel("Relative Likelihood")   
-    [mp.grid[i-min([4,5,6]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [4,5,6]+np.mod(n_dims,4)] 
-    mp.grid[1].set_xlim([xr[0][0]+xr[1][0],xr[0][1]+xr[1][1]]) # x-axis ranges.
-    mp.grid[2].set_xlim([xr[2][0]+xr[3][0],xr[2][1]+xr[3][1]])
+    # mp.fix_ticks()
+    axarr[0].set_ylabel("Relative Likelihood")   
+    [axarr[i-min([4,5,6]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [4,5,6]+np.mod(n_dims,4)] 
+    axarr[1].set_xlim([xr[0][0]+xr[1][0],xr[0][1]+xr[1][1]]) # x-axis ranges.
+    axarr[2].set_xlim([xr[2][0]+xr[3][0],xr[2][1]+xr[3][1]])
     
     # Add a secondary x-axis for BACD --> Mass
     # log(mass) = log(BACD) + log(area) + log(mu)+log(m_H2) - log(X)
     #     meas['areacm'] + meas['head']['mol_weight'] + log10(2.0*units.M_p.to('kg')/units.solMass.to('kg')) - meas['head']['abundance']
     # Makes sure aligned
-    ax2a.set_xlim(mp.grid[0].set_xlim()-np.log10(units.solLum.to('erg/s')))
+    ax2a.set_xlim(axarr[0].set_xlim()-np.log10(units.solLum.to('erg/s')))
     ax2a.set_xlabel(r'Log Luminosity  [L$_{\odot}$]')
-    ax2b.set_xlim(mp.grid[2].set_xlim()+meas['addmass'])
+    ax2b.set_xlim(axarr[2].set_xlim()+meas['addmass'])
     ax2b.set_xlabel(r'Log Molecular Mass [M$_{\odot}$]')
 
-    mp.draw() 
+    plt.draw() 
     plt.savefig('fig_marginalized2.png')
     print 'Saved fig_marginalized2.png'
     
     if n_dims > 7: # JRK 1/23/14, instead of n_dims == 8
-        mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1)) #
-        if not simplify: mp.title(title,xy=(0.5,0.97))
+        #mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1)) #
+        #if not simplify: mp.title(title,xy=(0.5,0.97))
+        f, axarr=plt.subplots(ny,nx,num=3,sharey=True,figsize=(4*nx,4*ny))
+        f.subplots_adjust(bottom=0.12,left=0.06,right=0.98,top=0.88)
+        f.subplots_adjust(wspace=0.1)
+        if not simplify: axarr[1].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
     
         for j in plotinds[2]:
             for m,mode in enumerate(s['modes']):
@@ -431,25 +454,24 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
                 dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
                 xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
                 yy =np.ravel(zip(yplot, yplot))
-                mp.grid[np.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
+                axarr[np.mod(j-n_dims,3)].fill_between(xx-dx,0,yy,color=modecolors[m],alpha=0.2)
                 #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j],color=modecolors[m],label='Mode')
                 #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]+mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
                 #mp.grid[np.mod(j-n_dims,3)].axvline(x=mode['mean'][j]+add[j]-mode['sigma'][j],color=modecolors[m],label='Mode',linestyle='--')
             
             yplot=dists['all'][j][1,:]
-            mp.grid[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-            mp.grid[np.mod(j-n_dims,3)].axvline(x=cube[j]+add[j],color=colors[j])
+            axarr[np.mod(j-n_dims,3)].plot(dists['all'][j][0,:]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+            axarr[np.mod(j-n_dims,3)].axvline(x=cube[j]+add[j],color=colors[j])
        
         if dists2:
             for j in plotinds2[2]:
                 yplot2=dists2['all'][j][1,:]
-                mp.grid[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-                mp.grid[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')     
+                axarr[np.mod(j-n_dims2,3)].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                axarr[np.mod(j-n_dims2,3)].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')     
 
-        mp.grid[0].set_ylabel("Relative Likelihood")       
-        [mp.grid[i-min([7,8,9]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [7,8,9]+np.mod(n_dims,4)]
+        axarr[0].set_ylabel("Relative Likelihood")       
+        [axarr[i-min([7,8,9]+np.mod(n_dims,4))].set_xlabel(nicenames[i]) for i in [7,8,9]+np.mod(n_dims,4)]
 
-        mp.fix_ticks()
         plt.savefig('fig_marginalized2ratio.png')
         print 'Saved fig_marginalized2ratio.png'  
     
@@ -753,8 +775,8 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         plt.ylim([np.min(np.concatenate((yplot0[yplot0>0]-1.0*yerr0[yplot0>0],yplot2[yplot2>0]-1.0*yerr2[yplot2>0]),axis=0)),
               np.max(np.concatenate((yplot0[yplot0>0]+1.0*yerr0[yplot0>0],yplot2[yplot2>0]+1.0*yerr2[yplot2>0]),axis=0))])
     else: 
-       plt.ylim([np.min(yplot0[yplot0>0]-1.0*yerr0[yplot0>0]),
-              np.max(yplot0[yplot0>0]+1.0*yerr0[yplot0>0])])
+       plt.ylim([np.min(yplot0[yplot0>0]-3.0*yerr0[yplot0>0]),
+              np.max(yplot0[yplot0>0]+3.0*yerr0[yplot0>0])])
     # Overrride that ylim if setyr is used.
     if np.sum(setyr) != 0: plt.ylim(setyr)
     yr=np.log10(plt.ylim())
@@ -820,7 +842,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
 def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title='',norm1=True,
                  modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
-                 plotinds2=0,add2=0,mult2=0,n_dims2=0):
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False):
 
     if n_dims > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
         useind=3
@@ -829,20 +851,25 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     
     sled_to_j=len(plotinds[useind])
     if n_dims==8: sled_to_j=sled_to_j/2
-    dims=np.array((np.ceil(np.sqrt(sled_to_j)),np.ceil(sled_to_j/np.ceil(np.sqrt(sled_to_j)))))
-    mp = multipanel(dims=dims.astype(int),figID=9,padding=(0,0.2),panel_size=dims.astype(int)) # 
-    mp.title(title,xy=(0.5,0.97))
+    nx=int(np.ceil(np.sqrt(sled_to_j)))
+    ny=int(np.ceil(sled_to_j/np.ceil(np.sqrt(sled_to_j))))
+    f, axarr=plt.subplots(ny,nx,num=9, sharey=True,figsize=(4*nx,4*ny))
+    f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    f.subplots_adjust(wspace=0.1)
+    if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
+
+    #mp = multipanel(dims=dims.astype(int),figID=9,padding=(0,0.2),panel_size=dims.astype(int)) # 
+    #mp.title(title,xy=(0.5,0.97))
     
-    gridinds=np.mod(range(sled_to_j),dims[0].astype(int)) # wow, seriously...
-    count=dims[1]-1
-    for i in range(dims[1].astype(int)):
-        print i,count,row
-        gridinds[i*dims[0]:dims[0]+i*dims[0]]+=count*dims[0]
-        count-=1
-    if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
+    #gridinds=np.mod(range(sled_to_j),nx) # wow, seriously...
+    #count=dims[1]-1
+    #for i in range(dims[1].astype(int)):
+    #    gridinds[i*dims[0]:dims[0]+i*dims[0]]+=count*dims[0]
+    #    count-=1
+    #if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
     
-    
-    for j in plotinds[useind]:      
+    for g,j in enumerate(plotinds[useind]):      
+        gridinds=np.floor((np.mod(g,sled_to_j))/nx),np.mod(np.mod(g,sled_to_j),nx)
         if not dists2: # Don't do these if we are overplotting a 2nd dist, too confusing.
             for m,mode in enumerate(s['modes']):
                 if colors[j]=='b': 
@@ -858,37 +885,41 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
                 dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
                 xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
                 yy =np.ravel(zip(yplot, yplot))
-                mp.grid[gridinds[j]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m
+                axarr[gridinds].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m
 
-                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
-                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
-                mp.grid[gridinds[j]].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
                 ##print mode['maximum'][j]+add[j],mode['sigma'][j]
            
         yplot=dists['all'][j][1,:] 
-        mp.grid[gridinds[j]].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
-        mp.grid[gridinds[j]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
+        axarr[gridinds].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        axarr[gridinds].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
         
-        if norm1: mp.grid[gridinds[j]].set_ylim(0,1)
+        if norm1: axarr[gridinds].set_ylim(0,1)
+        if g<=sled_to_j-1: axarr[gridinds].set_xlabel(nicenames[np.mod(g,sled_to_j)+4+3+3+np.mod(n_dims,4)])
+        if gridinds[1]==0: axarr[gridinds].set_ylabel("Relative Likelihood")
         
     if dists2:
         if n_dims2 > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
             useind2=3
         else: 
             useind2=2
+        sled_to_j2=len(plotinds2[useind2])
+        if n_dims >7: sled_to_j2=sled_to_j2/2
         try: 
-            for j in plotinds2[useind2]:
+            for g,j in enumerate(plotinds2[useind2]):
+                gridinds=np.floor((np.mod(g,sled_to_j2))/nx),np.mod(g,nx)
                 yplot2=dists2['all'][j][1,:]
-                mp.grid[gridinds[j]].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-                mp.grid[gridinds[j]].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')          
+                axarr[gridinds].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                axarr[gridinds].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')          
         except:
             print 'No SLED distribution comparison to overplot'  
     
-    mp.global_ylabel("Relative Likelihood")
+    # Remove unused axes.
+    if sled_to_j<nx*ny:
+        for i in -1*(np.arange(nx*ny-sled_to_j)+1): axarr[ny-1][i].axis('off')
     
-    [mp.grid[i].set_xlabel(nicenames[i+4+3+3+np.mod(n_dims,4)]) for i in range(len(plotinds[useind]))]
-
-    mp.fix_ticks()
     plt.savefig('fig_marginalizedsled.png')
     print 'Saved fig_marginalizedsled.png'
 

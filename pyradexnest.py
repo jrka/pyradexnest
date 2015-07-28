@@ -4,7 +4,6 @@ import numpy as np
 #from astropy.table import Table,join
 import pyradex as pyradex
 import cPickle as pickle
-from config import *
 import matplotlib.pyplot as plt
 
 def show(filepath): 
@@ -50,14 +49,14 @@ def measdata_pickle(measdatafile,sled_to_j=False):
 
     jup=np.array(data['J_up'])
     
-    # Require at least 3 unique lines to model.
-    if len(np.unique(jup)) < 3: raise Exception("Not enough lines to model.")
+    # Require at least 2 unique lines to model.
+    if len(np.unique(jup)) < 2: raise Exception("Not enough lines to model.")
            
     # Also calculate the "prior cuts" for mass and length (in "cube" units), add that to the meas structure.
     # Based off of rtl3_multi_make_prior_cuts.pro
+    angdist=dist.Distance(z=head['z']).pc/(1.0+head['z'])**2
+    s_area=head['omega_s']*(angdist)**2/(1.0+head['z'])**2 # pc^2
     if head['dynmass'] != -1:
-        angdist=dist.Distance(z=head['z']).pc/(1.0+head['z'])**2
-        s_area=head['omega_s']*(angdist)**2/(1.0+head['z'])**2 # pc^2
         NCO_dv_cut = (head['dynmass']*units.solMass.to('kg'))/(2.0*units.M_p.to('kg')*head['mol_weight'])
         NCO_dv_cut*= head['abundance']/(s_area*units.pc.to('cm')**2)
         NCO_dv_cut/=head['lw'] # Must check it.
@@ -245,7 +244,26 @@ def myloglike(cube, ndim, nparams):
 ######################################################################################
 # main function ######################################################################
 
-# User settings loaded into config.py already
+# User settings loaded into config.py already, otherwise use defaults
+try:
+    from config import *
+except:
+    print 'Could not load config.py, using default configurations.'
+    n_dims=8
+    sled_to_j=False
+    def myprior(cube, ndim, nparams):
+        cube[0]=cube[0]*4.5+2  # h2den1  2 to 6.5
+        cube[2]=cube[2]*7+12   # cdmol1  12 to 19
+        cube[3]=cube[3]*3-3    # ff1     -3 to 0
+        if ndim>4:
+            cube[1]=cube[1]*2.2+0.5# tkin1   0.5 to 2.3 = 3.16 to 502 K.
+            cube[4]=cube[4]*4.5+2  # h2den2  2 to 6.5
+            cube[5]=cube[5]*1.5+2  # tkin2   2 to 3.5 = 100 to 3162 K
+            cube[6]=cube[6]*7+12   # cdmol2  12 to 19
+            cube[7]=cube[7]*3-3    # ff2     -3 to 0
+        else:
+            cube[1]=cube[1]*3+0.5
+    norm1=True
 
 # The file to read in
 cwd=os.getcwd()
