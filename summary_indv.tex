@@ -1,0 +1,42 @@
+%% You can copy this file to your working directory to create a PDF which includes 
+%% the figures and results table.
+%% For 1-component models, comment out the fig_marginalized2ratio.png
+
+\title{Summary of PyMultiNest Results}
+\date{\today}
+\documentclass[12pt]{article}
+\usepackage{graphicx}
+\usepackage[margin=0.5in]{geometry}
+
+\begin{document}
+
+\begin{figure}
+\includegraphics[height=0.4\textheight]{fig_sled.png}
+\end{figure}
+\begin{figure*}
+\includegraphics[height=0.4\textheight]{fig_marginalized.png}
+\end{figure*}
+
+\clearpage
+
+\input{results_latex.tex}
+\begin{figure*}
+\includegraphics[width=\textwidth]{fig_conditional.png}
+\end{figure*}
+
+\clearpage
+
+\begin{figure*}
+\includegraphics[width=\textwidth]{fig_marginalized2.png}
+\end{figure*}
+
+% Comment out the below figure if using 1-component.
+\begin{figure*}
+\includegraphics[width=\textwidth]{fig_marginalized2ratio.png}
+\end{figure*}
+
+\begin{figure*}
+\includegraphics[height=5in]{fig_conditional2.png}
+\end{figure*}
+
+\end{document}
