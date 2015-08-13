@@ -35,9 +35,6 @@ mpirun -np 2 python pymultinest_demo.py
 https://github.com/keflavich/pyradex
 This will include an installation of radex.
 
-4) multiplot (Jordan Mirocha)
-https://bitbucket.org/mirochaj/multiplot
-
 
 And the aforementioned python packages, plus *this* folder,
  must be in your python path.  You also need astropy and matplotlib.
