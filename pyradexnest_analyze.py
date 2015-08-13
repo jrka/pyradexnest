@@ -14,6 +14,8 @@ import astropy.units as units
 from pyradexnest_analyze_tools import *
 from config import *
 
+# JRK 8/13/15: Was missing title in calls to plotconditional and plotconditional2.
+
 #################################################################################
 
 #### LOAD THE STATS
@@ -128,8 +130,8 @@ if doplot:
     plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
         xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas)
     
-    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)
-    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames)
+    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title)
+    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title)
     
     plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j)
     

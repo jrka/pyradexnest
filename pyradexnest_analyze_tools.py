@@ -1,18 +1,21 @@
 # JRK 8/12/13: maketables now determines the mode with the greatest
-# total likelihood and outputs 3 additional columns: its mean, sigma, and max.
+#  total likelihood and outputs 3 additional columns: its mean, sigma, and max.
 # JRK 8/14/13: maketables and plotmarginal2 now use meas['addmass'] to 
-# convert from log(BACD/dv) to log(mass/dv), meas['addmass'] is now part of the 
-# measdata pickle.
+#  convert from log(BACD/dv) to log(mass/dv), meas['addmass'] is now part of the 
+#  measdata pickle.
 # JRK 8/22/13: Fixed plotconditional2 and plotsledto work properly for 1 component modeling.
 # JRK 10/30/13: In plot_marginal, allow overplotting of a different model for comparison,
-# parameterized by dists2 and cube2.
+#  parameterized by dists2 and cube2.
 # JRK 7/28/15: Do not use the multiplot.multipanel package anymore for 
-# plotmarginal, plotmarginal2, and plotmarginalsled. Instead use subplots in matplotlib.
-# Still used in plotconditional and plotconditional2.
+#  plotmarginal, plotmarginal2, and plotmarginalsled. Instead use subplots in matplotlib.
+#  Still used in plotconditional and plotconditional2.
+# JRK 8/13/15: Redid plotconditional and plotconditional2 to not use multiplot either; 
+#  now it is not used at all. Also added diagonal lines for pressure and beam averaged
+#  column density (BACD) on the tkin vs. h2den and cdmol vs. ff plots, respectively.
 
 import numpy as np
 import astropy.units as units
-from multiplot import multipanel
+#from multiplot import multipanel
 import matplotlib.pyplot as plt
 import pyradex as pyradex
 import matplotlib.mlab as mlab
@@ -476,38 +479,74 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
         print 'Saved fig_marginalized2ratio.png'  
     
 def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
-                 modecolors=['g','m','y','c']):
+                 modecolors=['g','m','y','c'],simplify=False,title=''):
     import matplotlib.cm as cm
-    mp = multipanel(dims=(n_dims-1,n_dims-1),figID=4,diagonal='lower',panel_size=(3,3)) # 
-
-    for i in plotinds[0]:
+    #mp = multipanel(dims=(n_dims-1,n_dims-1),figID=4,diagonal='lower',panel_size=(3,3)) #
+     
+    nx=n_dims-1
+    ny=n_dims-1
+    f, axarr=plt.subplots(ny,nx,num=4,sharey=False,sharex=False,figsize=(3*nx,3*ny))
+    f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    f.subplots_adjust(wspace=0,hspace=0)
+    if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
+    
+    for g,i in enumerate(plotinds[0]):
         for j in range(i):
+            gridinds=(g-1,j)
             #ind=(n_dims-1) * (i-1) + j 
-            ind=(n_dims-1)-i+j+(n_dims-2)*(n_dims-1-i) # Wow.
-            mp.grid[ind].contourf(dists['all'][i,j][:,:,1]*mult[j]+add[j], dists['all'][i,j][:,:,0]*mult[i]+add[i], dists['all'][i,j][:,:,2], 
+            #ind=(n_dims-1)-i+j+(n_dims-2)*(n_dims-1-i) # Wow.
+            #mp.grid[ind].contourf
+            axarr[gridinds].contourf(dists['all'][i,j][:,:,1]*mult[j]+add[j], dists['all'][i,j][:,:,0]*mult[i]+add[i], dists['all'][i,j][:,:,2], 
                     5, cmap=cm.gray_r, alpha = 0.8,origin='lower') # NEed to transpose?????
                     
             #mp.grid[ind].scatter(datsep['all'][:,j+2]*mult[j]+add[j],datsep['all'][:,i+2]*mult[i]+add[i], color='k',marker='+',s=1, alpha=0.4)
                 
             if i==n_dims-1:
-                mp.grid[ind].set_xlabel(parameters[j])    
+                axarr[gridinds].set_xlabel(parameters[j])   
+            else:
+                [label.set_visible(False) for label in axarr[gridinds].get_xticklabels()] 
             if j==0:
-                mp.grid[ind].set_ylabel(parameters[i])
+                axarr[gridinds].set_ylabel(parameters[i])
+            else:
+                [label.set_visible(False) for label in axarr[gridinds].get_yticklabels()]
             
             for m,mode in enumerate(s['modes']):
-                mp.grid[ind].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
-                mp.grid[ind].axhline(y=mode['mean'][i]*mult[i]+add[i],color=modecolors[m])
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecolors[m],label='Mode')
+                axarr[gridinds].axhline(y=mode['mean'][i]*mult[i]+add[i],color=modecolors[m])
             
-            mp.grid[ind].axvline(x=cube[j]*mult[j]+add[j],color='k',linestyle='--',label='4D Max')
-            mp.grid[ind].axhline(y=cube[i]*mult[i]+add[i],color='k',linestyle='--')
+            axarr[gridinds].axvline(x=cube[j]*mult[j]+add[j],color='k',linestyle='--',label='4D Max')
+            axarr[gridinds].axhline(y=cube[i]*mult[i]+add[i],color='k',linestyle='--')
+            
+            # If we have temperature vs. density, we have diagonal pressure lines we can add
+            # Add labels indicating their values to the top of the plots
+            if (parameters[j]=='h2den1' and parameters[i]=='tkin1') or  (parameters[j]=='h2den2' and parameters[i]=='tkin2'):
+                presscontour=[3,4,5,6,7,8]
+                for p in presscontour: 
+                    axarr[gridinds].plot([axarr[gridinds].set_xlim()[0],p-axarr[gridinds].set_ylim()[0]],
+                        [p-axarr[gridinds].set_xlim()[0],axarr[gridinds].set_ylim()[0]],':k')
+                    axarr[gridinds].annotate('{:.0f}'.format(p),xy=(p-axarr[gridinds].set_ylim()[1],axarr[gridinds].set_ylim()[1]),
+                        xycoords='data')
+            # Likewise for column density and filling factor
+            if (parameters[j]=='cdmol1' and parameters[i]=='ff1') or  (parameters[j]=='cdmol2' and parameters[i]=='ff2'):
+                bacdcontour=[15,16,17,18,19,20,21,22,23]
+                for p in bacdcontour: 
+                    axarr[gridinds].plot([axarr[gridinds].set_xlim()[0],p-axarr[gridinds].set_ylim()[0]],
+                        [p-axarr[gridinds].set_xlim()[0],axarr[gridinds].set_ylim()[0]],':k')
+                    axarr[gridinds].annotate('{:.0f}'.format(p),xy=(p-axarr[gridinds].set_ylim()[1],axarr[gridinds].set_ylim()[1]),
+                        xycoords='data')
+        
+        # Remove the unused boxes in this row, which is j=i through j=n_dims-2
+        if g>0:
+            for j in range(i,n_dims-1): axarr[(g-1,j)].axis('off')
 
     ###### Still need to get everything aligned right.  Fix ticks moves the outer boxes
-    mp.fix_ticks()
-    for i in plotinds[0]:
+    #mp.fix_ticks()
+    for g,i in enumerate(plotinds[0]):
         for j in range(i):
-            ind=(n_dims-1)-i+j+(n_dims-2)*(n_dims-1-i) # Wow.
-            mp.grid[ind].set_xlim([np.min(dists['all'][i,j][:,:,1]*mult[j]+add[j]),np.max(dists['all'][i,j][:,:,1]*mult[j]+add[j])])
-            mp.grid[ind].set_ylim([np.min(dists['all'][i,j][:,:,0]*mult[i]+add[i]),np.max(dists['all'][i,j][:,:,0]*mult[i]+add[i])])
+            #ind=(n_dims-1)-i+j+(n_dims-2)*(n_dims-1-i) # Wow.
+            gridinds=(g-1,j)
+            axarr[gridinds].set_xlim([np.min(dists['all'][i,j][:,:,1]*mult[j]+add[j]),np.max(dists['all'][i,j][:,:,1]*mult[j]+add[j])])
+            axarr[gridinds].set_ylim([np.min(dists['all'][i,j][:,:,0]*mult[i]+add[i]),np.max(dists['all'][i,j][:,:,0]*mult[i]+add[i])])
     
     plt.legend(bbox_to_anchor=(0.,1.02,1.,0.102),loc=3)
     plt.draw()
@@ -516,37 +555,55 @@ def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicen
     print 'Saved fig_conditional.png'
 
 def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
-                 modecolors=['g','m','y','c']):
+                 modecolors=['g','m','y','c'],title='',simplify=False):
     import matplotlib.cm as cm
-    nplot=n_sec[0]-1
-    mp = multipanel(dims=(nplot,nplot),figID=5,diagonal=True,panel_size=(3,3)) # 
-
-    for i in plotinds[1]:
-        for j in range(n_dims,i):
+    #nplot=n_sec[0]-1
+    #mp = multipanel(dims=(nplot,nplot),figID=5,diagonal=True,panel_size=(3,3)) # 
+    
+    nx=n_sec[0]-1
+    ny=nx
+    f, axarr=plt.subplots(ny,nx,num=5,sharey=False,sharex=False,figsize=(2*nx,2*ny))
+    f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    f.subplots_adjust(wspace=0,hspace=0)
+    if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
+    
+    for g,i in enumerate(plotinds[1]):
+        for h,j in enumerate(range(n_dims,i)):
+            gridinds=(g-1,h)
             #ind=(nplot) * (i-n_dims-1) + j-n_dims
-            ind=(nplot)-(i-n_dims)+(j-n_dims)+(nplot-1)*(nplot-(i-n_dims))
-            mp.grid[ind].contourf(dists['all'][i,j][:,:,1]+add[j], dists['all'][i,j][:,:,0]+add[i], dists['all'][i,j][:,:,2], 
+            #ind=(nplot)-(i-n_dims)+(j-n_dims)+(nplot-1)*(nplot-(i-n_dims))
+            #mp.grid[ind]
+            axarr[gridinds].contourf(dists['all'][i,j][:,:,1]+add[j], dists['all'][i,j][:,:,0]+add[i], dists['all'][i,j][:,:,2], 
                     5, cmap=cm.gray_r, alpha = 0.8,origin='lower') # NEed to transpose?????
                 
-            if i==plotinds[1][nplot]:
-                mp.grid[ind].set_xlabel(parameters[j])    
-            if j==plotinds[1][0]:
-                mp.grid[ind].set_ylabel(parameters[i])
+            if g==nx:
+                axarr[gridinds].set_xlabel(parameters[j])
+            else:
+                [label.set_visible(False) for label in axarr[gridinds].get_xticklabels()] 
+            if h==0:
+                axarr[gridinds].set_ylabel(parameters[i])
+            else:
+                [label.set_visible(False) for label in axarr[gridinds].get_yticklabels()]
  
             for m,mode in enumerate(s['modes']):
-                mp.grid[ind].axvline(x=mode['mean'][j]+add[j],color=modecolors[m],label='Mode')
-                mp.grid[ind].axhline(y=mode['mean'][i]+add[i],color=modecolors[m])
+                axarr[gridinds].axvline(x=mode['mean'][j]+add[j],color=modecolors[m],label='Mode')
+                axarr[gridinds].axhline(y=mode['mean'][i]+add[i],color=modecolors[m])
             
-            mp.grid[ind].axvline(x=cube[j]+add[j],color='k',linestyle='--',label='4D Max')
-            mp.grid[ind].axhline(y=cube[i]+add[i],color='k',linestyle='--')
+            axarr[gridinds].axvline(x=cube[j]+add[j],color='k',linestyle='--',label='4D Max')
+            axarr[gridinds].axhline(y=cube[i]+add[i],color='k',linestyle='--')
+        
+        # Remove blank boxes in upper diagonal
+        if g>0: 
+            for h in range(g,nx): axarr[(g-1,h)].axis('off')
            
     ###### Still need to get everything aligned right.
-    mp.fix_ticks()
-    for i in plotinds[1]:
-        for j in range(n_dims,i):
-            ind=(nplot)-(i-n_dims)+(j-n_dims)+(nplot-1)*(nplot-(i-n_dims))
-            mp.grid[ind].set_xlim([np.min(dists['all'][i,j][:,:,1]+add[j]),np.max(dists['all'][i,j][:,:,1]+add[j])])
-            mp.grid[ind].set_ylim([np.min(dists['all'][i,j][:,:,0]+add[i]),np.max(dists['all'][i,j][:,:,0]+add[i])])
+    #mp.fix_ticks()
+    for g,i in enumerate(plotinds[1]):
+        for h,j in enumerate(range(n_dims,i)):
+            gridinds=(g-1,h)
+            #ind=(nplot)-(i-n_dims)+(j-n_dims)+(nplot-1)*(nplot-(i-n_dims))
+            axarr[gridinds].set_xlim([np.min(dists['all'][i,j][:,:,1]+add[j]),np.max(dists['all'][i,j][:,:,1]+add[j])])
+            axarr[gridinds].set_ylim([np.min(dists['all'][i,j][:,:,0]+add[i]),np.max(dists['all'][i,j][:,:,0]+add[i])])
             
     plt.legend(bbox_to_anchor=(0.,1.02,1.,0.102),loc=3)
     plt.draw()
