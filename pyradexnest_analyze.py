@@ -38,6 +38,8 @@ a = pymultinest.Analyzer(n_params = n_params)
 s = a.get_stats()
 data= a.get_data()
 # Check if a.post_file exists; this separates the data by mode.
+#### TEMPORARY FIX, in case old version of pymultinest with typo is being used.
+if a.post_file==u'chains/1-post_seperate.dat': a.post_file=u'chains/1-post_separate.dat'
 if os.path.isfile(a.post_file):
     datsep=post_sep(a.post_file)  # Divide the "data" up by mode.
 else:
@@ -85,7 +87,7 @@ xrange[2,:]+=lw
 # Otherwise, do all the binning and save it to a pickle.
 
 distfile='distributions.pkl'
-dists=get_dists(distfile,s,datsep,grid_points=40)
+dists=get_dists(distfile,s,datsep,n_dims + np.sum(n_sec),grid_points=40)
 
 ######################################
 # Table.

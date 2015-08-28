@@ -12,6 +12,16 @@
 # JRK 8/13/15: Redid plotconditional and plotconditional2 to not use multiplot either; 
 #  now it is not used at all. Also added diagonal lines for pressure and beam averaged
 #  column density (BACD) on the tkin vs. h2den and cdmol vs. ff plots, respectively.
+# JRK 8/28/15: get_dists: reduced distributions.pkl file size by:
+#   1) do not replicate "0" and "all" distributions if only 1 mode.
+#   2) do not calculate conditional probabilities between line flux likelihood and 
+#       any other parameter.
+#   Also creates a distributions1d.pkl file, which is < 1MB. Not used in these routines,
+#   but can be used to quickly and easily access many 1D distributions.
+#   plot_sled: added option legend=(True or False) and newplot=(True or False).
+#     By default, this is used as newplot=True in pymultinest_analyze.py.
+#     The false option allows one to insert the SLED on an existing plot object 
+#     (e.g. for looping over many results and creating postage stamp SLED plots).
 
 import numpy as np
 import astropy.units as units
@@ -174,10 +184,21 @@ def bin_results(stats,data,dim1,dim2=None,grid_points=40,
         
     return (grid_x,grid_y,grid_z)
 
-def get_dists(distfile,s,datsep,grid_points=40):
+def get_dists(distfile,s,datsep,maxcind,grid_points=40):
+    # To reduce the size of the distributions files...
+    #   1) If there is only one mode, do not replicate "0" and "all" when creating or saving.
+    #      Unfortunately, if we want to keep each mode separate as well as the total, 
+    #      we'll have larger files.
+    #   2) Do not calculate conditional probabilities between flux likelihoods and 
+    #      any other parameter likelihoods. For 2-component fits with 13 lines, 
+    #      this was 85% of the distribution size. The index at which flux likelihoods
+    #      start is now input as maxcind (maximum conditional index), n_dims + np.sum(n_sec)
     import os
     import cPickle as pickle
     n_params=len(s['modes'][0]['mean'])
+    nmodes=len(s['modes'])
+    # Check if we already have distributions.pkl file, and if one of the outputs in 
+    #   chains has not changed since distribution.pkl's modified time.
     if os.path.exists(distfile) and os.path.exists('chains/1-.json') and os.path.getmtime(distfile) > os.path.getmtime('chains/1-.json'):
         try:
             dists=pickle.load(open(distfile,"rb"))
@@ -190,31 +211,41 @@ def get_dists(distfile,s,datsep,grid_points=40):
         # We want 1D distributions for each parameter, 2D for each combination of parameters
        # The secondary paramters (luminosity, pressure, bacd) are included here.
         dists={}
+        dists1d={}
+        if nmodes==1: del datsep['all'] # Don't need to do twice.
         print datsep.keys()
         for key in datsep.keys():
             print 'Marginalizing...',key
             data=datsep[key]
             tdists={}
+            tdists1d={}
             maxes=[]
             for i in range(n_params):
                 x,y,z = bin_results(s,data,i,dim2=None,grid_points=grid_points,
                                     marginalization_type='sum', only_interpolate=False)
                 z=z.reshape(grid_points)
                 tdists[i]=np.vstack((x,z))
+                tdists1d[i]=np.vstack((x,z))
                 
                 # If we are going to do normalization of multiple modes, we need to 
                 # keep the "max" of each one easily accessible here.
                 maxes.append(z.max())
-              
-                for j in range(i):
-                    x,y,z = bin_results(s,data,i,dim2=j,grid_points=grid_points,
+                
+                if i<maxcind:
+                    for j in range(i):
+                        x,y,z = bin_results(s,data,i,dim2=j,grid_points=grid_points,
                                         marginalization_type='sum', only_interpolate=False)
-                    tdists[i,j]=np.dstack((x,y,z))
+                        tdists[i,j]=np.dstack((x,y,z))
             tdists['max']=maxes
+            tdists1d['max']=maxes
             dists[key]=tdists
-        
+            dists1d[key]=tdists1d
+            
         pickle.dump(dists, open(distfile, "wb") )
-        print 'Saved distributions.pkl'
+        pickle.dump(dists1d, open(distfile.replace('.pkl','1d.pkl'), "wb") )
+        print 'Saved distributions.pkl'    
+        
+    if nmodes==1: dists['all']=dists[0] # Redundancy used later... at least not on disk :-/
         
     return dists
     
@@ -613,12 +644,16 @@ def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     
 def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',lum=False,meas2=0,cube2=[],setyr=[0,0],
              colors=['b','r'],colors2=['#6495ED','m'],n_dims2=0,simplify=False,asymerror=0,
-             sled_to_j=0):
+             sled_to_j=0,newplot=True,legend=True):
     # 12/3/13: Fixed bug if meas2 and meas have different number of elements (esp. diff # of non-upper-limits).
     # 4/2/14: Use asymerror=Table if you want to use the assymetric error regions for plotting.
-    plt.figure(6,figsize=(10,8))
-    plt.subplots_adjust(bottom=0.08,left=0.08,right=0.97,top=0.97) # LEFT 0.12 JRK 4/6/14
-    plt.clf()
+    # 8/27/15: Set newplot=False to plot to an existing figure, and not save the png. Also skips the next plots.
+    #    Can also set legend=False if want to exclude the legend (for same purpose, for example)
+    #    y axis limit is now set using only those points of values > 0 and S/N > 3 (else too small ylimit)
+    if newplot:
+        plt.figure(6,figsize=(10,8))
+        plt.subplots_adjust(bottom=0.08,left=0.08,right=0.97,top=0.97) # LEFT 0.12 JRK 4/6/14
+        plt.clf()
     plt.xlabel('Upper J')
     if lum:
         plt.ylabel(r'Luminosity [L$_\odot$]')
@@ -828,12 +863,13 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     # A bit more tweaking of the plot:
     plt.xlim([0,14])
     #plt.ylim([1e-3,1e1])
+    ylimuse=np.all([yplot0>0,yplot0/yerr0>3.0],axis=0)
     if meas2:
         plt.ylim([np.min(np.concatenate((yplot0[yplot0>0]-1.0*yerr0[yplot0>0],yplot2[yplot2>0]-1.0*yerr2[yplot2>0]),axis=0)),
               np.max(np.concatenate((yplot0[yplot0>0]+1.0*yerr0[yplot0>0],yplot2[yplot2>0]+1.0*yerr2[yplot2>0]),axis=0))])
     else: 
-       plt.ylim([np.min(yplot0[yplot0>0]-3.0*yerr0[yplot0>0]),
-              np.max(yplot0[yplot0>0]+3.0*yerr0[yplot0>0])])
+       plt.ylim([np.min(yplot0[ylimuse]-3.0*yerr0[ylimuse]),
+              np.max(yplot0[ylimuse]+3.0*yerr0[ylimuse])])
     # Overrride that ylim if setyr is used.
     if np.sum(setyr) != 0: plt.ylim(setyr)
     yr=np.log10(plt.ylim())
@@ -841,10 +877,13 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         for i,c in enumerate(chisq): 
             pos=np.power(10,(0.2-0.05*i)*(yr[1]-yr[0])+yr[0])
             plt.text(2,pos,c)
-    plt.legend()
+    if legend: plt.legend()
     
-    plt.savefig('fig_sled.png')
-    print 'Saved fig_sled.png'
+    if newplot: 
+        plt.savefig('fig_sled.png')
+        print 'Saved fig_sled.png'
+    else:
+        return
     
     ######## OPTICAL DEPTH
     plt.figure(7)
