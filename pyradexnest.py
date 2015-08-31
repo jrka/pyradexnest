@@ -10,6 +10,9 @@ from pyradexnest_tools import *
 # JRK 8/13/15: Moved measdata_pickle and myloglike functions to pyradexnest_tools.py.
 #   If a config.py file is not found, copy the file config_default.py into the 
 #   working directory. This is because the analyze script needs to know the configs later.
+# JRK 8/31/15: Commented out 1--mode-marginal-X.pdf and 1--mode-marginal-cumulative-X.pdf
+#   plot creation at the end of this script. Prefer not to include, but user may want.
+
 
 def show(filepath): 
 	""" open the output (pdf) file for the user """
@@ -115,19 +118,19 @@ p = pymultinest.PlotMarginalModes(a)
 #plt.savefig("marginals_multinest.pdf") #, bbox_inches='tight')
 
 #show("marginals_multinest.pdf")
-for i in range(n_params):
-       outfile = '%s-mode-marginal-%d.pdf' % (a.outputfiles_basename,i)
-       p.plot_modes_marginal(i, with_ellipses = True, with_points = False)
-       plt.ylabel("Probability")
-       plt.xlabel(parameters[i])
-       plt.savefig(outfile, format='pdf', bbox_inches='tight')
-       plt.close()
-       
-       outfile = '%s-mode-marginal-cumulative-%d.pdf' % (a.outputfiles_basename,i)
-       p.plot_modes_marginal(i, cumulative = True, with_ellipses = True, with_points = False)
-       plt.ylabel("Cumulative probability")
-       plt.xlabel(parameters[i])
-       plt.savefig(outfile, format='pdf', bbox_inches='tight')
-       plt.close()
-
-print "take a look at the pdf files in chains/" 
+#for i in range(n_params):
+#       outfile = '%s-mode-marginal-%d.pdf' % (a.outputfiles_basename,i)
+#       p.plot_modes_marginal(i, with_ellipses = True, with_points = False)
+#       plt.ylabel("Probability")
+#       plt.xlabel(parameters[i])
+#       plt.savefig(outfile, format='pdf', bbox_inches='tight')
+#       plt.close()
+#       
+#       outfile = '%s-mode-marginal-cumulative-%d.pdf' % (a.outputfiles_basename,i)
+#       p.plot_modes_marginal(i, cumulative = True, with_ellipses = True, with_points = False)
+#       plt.ylabel("Cumulative probability")
+#       plt.xlabel(parameters[i])
+#       plt.savefig(outfile, format='pdf', bbox_inches='tight')
+#       plt.close()
+#
+#print "take a look at the pdf files in chains/" 
