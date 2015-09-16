@@ -22,6 +22,8 @@
 #     By default, this is used as newplot=True in pymultinest_analyze.py.
 #     The false option allows one to insert the SLED on an existing plot object 
 #     (e.g. for looping over many results and creating postage stamp SLED plots).
+# JRK 9/16/15: Use return_dict=True in the plotsled call to pyradex, in order to 
+#    use consistent keys with all other places in the code.
 
 import numpy as np
 import astropy.units as units
@@ -815,25 +817,27 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
-        dat['flux_kkms']*=np.power(10,thiscube[3])
-        model1=dat['flux_kkms']
+                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                          debug=False, return_dict=True)
+        dat['FLUX_Kkms']=np.array(map(float,dat['FLUX_Kkms']))*np.power(10,thiscube[3])
+        model1=dat['FLUX_Kkms']
         
         if np.mod(n_dims,4)==2: model1/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         if lum: 
             (model1,trash)=spire_conversions(model1,'kkms','lsol',dat['J_up']*115.3,sr=thismeas['head']['omega_s'],
                               z=thismeas['head']['z'],dist=dist.Distance(z=thismeas['head']['z']).Mpc)
             model1*=thismeas['head']['lw']
-        plt.plot(dat['j_up'],model1,color=t_colors[0],label=label1,linestyle=linestyle)
-        newdat=dat['flux_kkms']
+        plt.plot(dat['J_up'],model1,color=t_colors[0],label=label1,linestyle=linestyle)
+        newdat=dat['FLUX_Kkms']
     
         if t_n_dims>7:
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
-            dat2['flux_kkms']*=np.power(10,thiscube[7])
-            model2=dat2['flux_kkms']
+                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                           debug=False,return_dict=True)
+            dat2['FLUX_Kkms']=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,thiscube[7])
+            model2=dat2['FLUX_Kkms']
             if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
             if lum:
                 (model2,trash)=spire_conversions(model2,'kkms','lsol',dat2['J_up']*115.3,sr=thismeas['head']['omega_s'],
@@ -841,9 +845,9 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
                 model2*=thismeas['head']['lw']  
 
             model3=model1+model2
-            newdat=dat['flux_kkms']+dat2['flux_kkms']
-            plt.plot(dat2['j_up'],model2,color=t_colors[1],label=label2,linestyle=linestyle)
-            plt.plot(dat2['j_up'],model3,color='k',label=labelT,linestyle=linestyle)           
+            newdat=np.array(map(float,dat['FLUX_Kkms']))+np.array(map(float,dat2['FLUX_Kkms']))
+            plt.plot(dat2['J_up'],model2,color=t_colors[1],label=label2,linestyle=linestyle)
+            plt.plot(dat2['J_up'],model3,color='k',label=labelT,linestyle=linestyle)           
 
 
         # Calculate Chi Squared?
@@ -851,7 +855,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         if np.mod(n_dims,4)==2: newdat/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         chisq.append(0)
         for i,tflux in enumerate(thismeas['flux'][thisok]):
-            temp=newdat[dat['j_up'] == thismeas['J_up'][thisok][i]]
+            temp=newdat[dat['J_up'] == thismeas['J_up'][thisok][i]]
             #print thismeas['J_up'][thisok][i],tflux,thismeas['sigma'][thisok][i],temp
             if w==3:
                 chisq[1]+=((temp-tflux)/thismeas['sigma'][thisok][i])**2.0
@@ -899,15 +903,17 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)    
+                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                          debug=False,return_dict=True)    
     
     if n_dims==8: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, debug=False)
+                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                           debug=False,return_dict=True)
     
-    plt.plot(dat['j_up'],dat['tau'],color=colors[0],label='Component 1')
-    if n_dims==8: plt.plot(dat2['j_up'],dat2['tau'],color=colors[1],label='Component 2')
+    plt.plot(dat['J_up'],dat['TAU'],color=colors[0],label='Component 1')
+    if n_dims==8: plt.plot(dat2['J_up'],dat2['TAU'],color=colors[1],label='Component 2')
 
     plt.xlim([0,14])
     plt.legend()
@@ -922,10 +928,10 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     plt.ylabel('Excitation Temperature [K]')
     if not simplify: plt.title(title)
 
-    plt.plot(dat['j_up'],dat['t_ex'],color=colors[0],label='Component 1')
+    plt.plot(dat['J_up'],dat['T_EX'],color=colors[0],label='Component 1')
     plt.axhline(y=np.power(10,cube[1]),color=colors[0],linestyle='--')
     if n_dims==8: 
-        plt.plot(dat2['j_up'],dat2['t_ex'],color=colors[1],label='Component 2')
+        plt.plot(dat2['J_up'],dat2['T_EX'],color=colors[1],label='Component 2')
         plt.axhline(y=np.power(10,cube[5]),color=colors[1],linestyle='--')
 
     plt.xlim([0,14])

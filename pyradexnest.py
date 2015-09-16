@@ -1,10 +1,5 @@
 import pymultinest
-import os, threading, subprocess
-import numpy as np
 #from astropy.table import Table,join
-import pyradex as pyradex
-import cPickle as pickle
-import matplotlib.pyplot as plt
 from pyradexnest_tools import *
 
 # JRK 8/13/15: Moved measdata_pickle and myloglike functions to pyradexnest_tools.py.
@@ -12,6 +7,9 @@ from pyradexnest_tools import *
 #   working directory. This is because the analyze script needs to know the configs later.
 # JRK 8/31/15: Commented out 1--mode-marginal-X.pdf and 1--mode-marginal-cumulative-X.pdf
 #   plot creation at the end of this script. Prefer not to include, but user may want.
+# JRK 9/16/15: User can now set taulimit in the config file; was hardcoded as [-0.9,100.0].
+#   These are the limits between which we will trust RADEX and use lines in our likelihood.
+#   No need for import statements at top; they are in pyradexnest_tools.py.
 
 
 def show(filepath): 
@@ -27,6 +25,9 @@ if not os.path.exists("chains"): os.mkdir("chains")
 # main function ######################################################################
 
 # User settings loaded into config.py already, otherwise use defaults
+# Because taulimit was added later, old config.py files might not have it.
+# Default will be used instead in measdata_pickle.
+taulimit=None
 try:
     from config import *
 except:
@@ -63,7 +64,7 @@ if sled_to_j and n_dims==8:
 n_params = len(parameters)
 
 # Created our measured data pickle.
-measdata_pickle(measdatafile,sled_to_j=sled_to_j)
+measdata_pickle(measdatafile,sled_to_j=sled_to_j,taulimit=taulimit)
 
 # Before starting, record the parameter limits, min and max of prior cube.
 # Outdated; now this is recorded in config.py.  But in case you've changed it...

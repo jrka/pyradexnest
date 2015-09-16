@@ -6,11 +6,13 @@ import cPickle as pickle
 import matplotlib.pyplot as plt
 
 # read in measdata ######################################################################
-def measdata_pickle(measdatafile,sled_to_j=False):
+def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
     from astropy import constants as const
     from astropy import units as units
     import astropy.coordinates.distances as dist
     import astropy.io.ascii as ascii
+    
+    if not taulimit: taulimit=[-0.9,100.0]
     
     jytocgs=1.0e-23
     top=np.genfromtxt(measdatafile,delimiter="\n",comments="#")
@@ -65,7 +67,7 @@ def measdata_pickle(measdatafile,sled_to_j=False):
 
     meas = {'J_up': jup, 'flux':flux, 'sigma':sigma, 
             'masscut':NCO_dv_cut, 'lengthcut': gallength, 'head':head, 'areacm':np.log10(s_area*units.pc.to('cm')**2),
-            'sigmacut':3.0, 'taulimit':[-0.9,100.0], 'addmass':addmass, 'sled_to_j':sled_to_j}
+            'sigmacut':3.0, 'taulimit':taulimit, 'addmass':addmass, 'sled_to_j':sled_to_j}
     print meas
     
     pickle.dump(meas, open("measdata.pkl", "wb") )
@@ -77,6 +79,9 @@ def measdata_pickle(measdatafile,sled_to_j=False):
 # loglikelihood function ################################################################
 def myloglike(cube, ndim, nparams):
     import warnings
+    
+    debug=False # Change this to return likelihoods to diagnose certain problems
+    
     # Calculate the log(likelihood).  Load in the measdata.pkl for our data,
     # and use pyradex to get our model.
     # If we violate any priors, limits, or have calculation errors, return -2e100 as the likelihood.
@@ -96,9 +101,11 @@ def myloglike(cube, ndim, nparams):
            np.log10(np.power(10,cube[2]+cube[3])+np.power(10,cube[6]+cube[7])) > meas['masscut'] or \
            cube[2]-cube[0]-0.5*cube[3] > meas['lengthcut'] or \
            cube[6]-cube[4]-0.5*cube[7] > meas['lengthcut']:
+               if debug: return 1e2
                return -2e100
     else:
         if cube[2]+cube[3] > meas['masscut'] or cube[2]-cube[0]-0.5*cube[3] > meas['lengthcut']:
+            if debug: return 1e2
             return -2e100
 
     # Call RADEX for the first component.
@@ -128,6 +135,7 @@ def myloglike(cube, ndim, nparams):
         #cube[ndim]=np.sum(R.source_brightness_beta) # luminosity; not correct units yet.
         
     except:
+        if debug: return 1e3
         return -2e100
 
     # Which indices are lines that we are concerned with?
@@ -168,6 +176,7 @@ def myloglike(cube, ndim, nparams):
             #modelt=model1+model2
             #tauok=np.all([tau1<taumax,tau1>taumin,tau2<taumax,tau2>taumin],axis=0)
         except:
+            if debug: return 1e3
             return -2e100
     else:
         modelt=model1# total model
@@ -175,13 +184,16 @@ def myloglike(cube, ndim, nparams):
     
     # Check that we have at least one line with optical depth in allowable limits.
     if not np.any(tauok[jmeas]):
+        if debug: return 1e4
         return -2e100
         
     # Check that we don't violate ANY line flux upper limits.
     ul=np.where(meas['flux']==0)[0]
     for i in ul:
         ulok=modelt[jup1==meas['J_up'][i]] < meas['sigma'][i]*sigmacut
-        if not ulok: return -2e100
+        if not ulok: 
+            if debug: return 1e5
+            return -2e100
     
     # We've made it!  Calculate likelihood!
     nmeas=len(meas['sigma'])
@@ -253,7 +265,6 @@ def plot_mass_length_limits(meas,ndims,pmin,pmax,measdatafile=''):
     else: 
         plt.title('Mass Cut: Restricts High (N+ff), Shaded')
     plt.savefig('prior_mass.png')
-    
 
 
     # Length limit for warm and cold
