@@ -1,20 +1,16 @@
 #
 import pymultinest
-import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 from matplotlib.ticker import MultipleLocator
 import os
 import cPickle as pickle
-import pyradex as pyradex
-from multiplot import multipanel
 from astropy.table import Table, Column
-import numpy as np
 import sys
-import astropy.units as units
 from pyradexnest_analyze_tools import *
 from config import *
 
 # JRK 8/13/15: Was missing title in calls to plotconditional and plotconditional2.
+# JRK 9/22/15: Don't replicate the import calls from pyradexnest_analyze_tools
 
 #################################################################################
 

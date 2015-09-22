@@ -209,8 +209,11 @@ def myloglike(cube, ndim, nparams):
             loglike=loglike
             
     # Record the luminosity, pressure, and beam-averaged column density for binning later.
-    #cube[ndim]=dat['LogLmol']+meas['areacm']+cube[2]+cube[3] #0  ##### NEED THIS LATER
-    cube[ndim]=1.0  # FILL IN LATER.
+    # The public distribution of RADEX will not output this luminosity; sorry all users...
+    if 'LogLmol' in dat1.keys():
+        cube[ndim]=dat1['LogLmol']+meas['areacm']+cube[2]+cube[3]
+    else: 
+        cube[ndim]=1.0  # Those not using our private RADEX code will not get luminosity.
     cube[ndim+1]=cube[0]+cube[1]
     cube[ndim+2]=cube[2]+cube[3]
 
@@ -225,8 +228,10 @@ def myloglike(cube, ndim, nparams):
     # If we have 2 components, also records those L, P, and BACD, as well
     # as ratios of the warm to cold (note these are in log, so they are differenced).
     if ndim>4:
-        #cube[ndim+3]=dat2['LogLmol']+meas['areacm']+cube[6]+cube[7] #0  #### NEED THIS LATER
-        cube[ndim+3]=1.0  # FILL IN LATER
+        if 'LogLmol' in dat2.keys():
+            cube[ndim+3]=dat2['LogLmol']+meas['areacm']+cube[6]+cube[7]
+        else: 
+            cube[ndim+3]=1.0  # See luminosity note above.
         cube[ndim+4]=cube[4]+cube[5]
         cube[ndim+5]=cube[6]+cube[7]
         # Ratios of WARM to COLD
