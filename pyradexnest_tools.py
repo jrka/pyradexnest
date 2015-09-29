@@ -5,6 +5,9 @@ import pyradex as pyradex
 import cPickle as pickle
 import matplotlib.pyplot as plt
 
+# JRK 9/29/15: modify measdata_pickle to allow a 9th line in the header
+# to explicitly set the luminosity distance.
+
 # read in measdata ######################################################################
 def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
     from astropy import constants as const
@@ -16,10 +19,18 @@ def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
     
     jytocgs=1.0e-23
     top=np.genfromtxt(measdatafile,delimiter="\n",comments="#")
-    head={'omega_s':top[0],'z':top[1],'mag':top[2],'lw':top[3],'abundance':top[4],'dynmass':top[5],'mol_weight':top[6],'length':top[7]}
+    head={'omega_s':top[0],'z':top[1],'mag':top[2],'lw':top[3],'abundance':top[4],
+        'dynmass':top[5],'mol_weight':top[6],'length':top[7]}
+    # If set, add in the luminosity distance in Mpc. Else, calculate it.
+    if np.isfinite(top[8]):
+        head['dl']=top[8]
+        data_start=9
+    else: 
+        head['dl']=dist.Distance(z=head['z']).Mpc
+        data_start=8
     
-    data=ascii.read(measdatafile,delimiter='\s',comment='#',guess=False,Reader=ascii.NoHeader,data_start=8,
-    names=['mol','J_up','J_lo','freq','FLUX_Jykms','measerr','calerr'])
+    data=ascii.read(measdatafile,delimiter='\s',comment='#',guess=False,Reader=ascii.NoHeader,
+       data_start=data_start,names=['mol','J_up','J_lo','freq','FLUX_Jykms','measerr','calerr'])
     
     # Add the molecule name to the header.  ONE MOLECULE FOR THIS.  JRK 1/28/15
     if len(set(data['mol'])) != 1:
@@ -46,7 +57,8 @@ def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
            
     # Also calculate the "prior cuts" for mass and length (in "cube" units), add that to the meas structure.
     # Based off of rtl3_multi_make_prior_cuts.pro
-    angdist=dist.Distance(z=head['z']).pc/(1.0+head['z'])**2
+    # Convert luminosity distance in Mpc from header to pc.
+    angdist=(head['dl']*1e6)*(1.0+head['z'])**2 # angdist=dist.Distance(z=head['z']).pc/(1.0+head['z'])**2
     s_area=head['omega_s']*(angdist)**2/(1.0+head['z'])**2 # pc^2
     if head['dynmass'] != -1:
         NCO_dv_cut = (head['dynmass']*units.solMass.to('kg'))/(2.0*units.M_p.to('kg')*head['mol_weight'])

@@ -45,12 +45,13 @@ And the aforementioned python packages, plus *this* folder,
 ===========
 ## To run:
 
-1) Enter the directory of your run.  (e.g. example_run)
+1) Enter the directory of your run (e.g. example_run). Note that the remaining operation 
+assumes '.' in your python path, as measdata.txt and config.py (and future files) need to be found.
 
 2) Create a file which contains the data for fitting.  Its name needs to be measdata.txt, in the example_run folder. 
 Format of this file:
 
-- 8 lines of header information:
+- 8 (or 9) lines of header information:
     - Beam or source area in steradians
     - Redshift
     - Magnification
@@ -59,6 +60,8 @@ Format of this file:
     - Maximum dynamical mass (solar masses)
     - mu
     - Maximum length (pc)
+    - Optional line: luminosity distance in Mpc. If not set, this will be calculated from the redshift
+    using astropy.coordinates.distances.Distance. Useful for very low redshift.
 - A table with 7 columns:
     - Molecule (must all be the same for now, and correspond to the molecule.dat filename.)
     - J_upper
@@ -136,6 +139,7 @@ which is last modified when it finished.
 The redshift is used in the conversion from Jy km/s to K, though this will make very little difference 
 at low redshifts.  The most important use of the redshift is to determine an angular size scale 
 to convert the area from sr to physical area (e.g. pc^2), which is necessary for calculating the mass.
+Now, however, you can explicitly set the luminosity distance to use instead.
 
 3) a) Which molecules can I use?  b) Why do you list the molecule on every line, instead of once, if it always has to be the same?
 

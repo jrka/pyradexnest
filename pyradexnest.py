@@ -10,6 +10,8 @@ from pyradexnest_tools import *
 # JRK 9/16/15: User can now set taulimit in the config file; was hardcoded as [-0.9,100.0].
 #   These are the limits between which we will trust RADEX and use lines in our likelihood.
 #   No need for import statements at top; they are in pyradexnest_tools.py.
+# JRK 9/29/15: Added meas['head']['dl'] in Mpc, can be calculated from redshift, or set
+#   as 9th header line, see measdata_pickle in pyradexnest_tools.py
 
 
 def show(filepath): 

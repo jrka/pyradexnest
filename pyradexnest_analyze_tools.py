@@ -24,6 +24,10 @@
 #     (e.g. for looping over many results and creating postage stamp SLED plots).
 # JRK 9/16/15: Use return_dict=True in the plotsled call to pyradex, in order to 
 #    use consistent keys with all other places in the code.
+# JRK 9/29/15: In plot_sled, if lum=True, will now use meas['head']['dl'] instead of 
+#    dist.Distance(z=meas2['head']['z']).Mpc. You MUST RERUN measdata_pickle in
+#    your directory if your measdata.pkl file was created before today, it will be missing
+#    that number in the header!
 
 import numpy as np
 import astropy.units as units
@@ -706,11 +710,14 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         
         if lum:     
             from pysurvey import spire_conversions
-            import astropy.coordinates.distances as dist
+            if 'dl' not in meas['head']: 
+                print "YOU MUST RERUN MEASDATA_PICKLE SO THAT MEAS['HEAD']['DL'] IS INCLUDED"
+                print "Probably crashing now..."
+            
             (yfill1,trash)=spire_conversions(yfill1,'kkms','lsol',range(1,14,1)*115.3,sr=meas['head']['omega_s'],
-                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)
+                              z=meas['head']['z'],dist=meas['head']['dl'])
             (yfill2,trash)=spire_conversions(yfill2,'kkms','lsol',range(1,14,1)*115.3,sr=meas['head']['omega_s'],
-                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc)       
+                              z=meas['head']['z'],dist=meas['head']['dl'])       
             yfill1*=meas['head']['lw']
             yfill2*=meas['head']['lw']
         
@@ -726,7 +733,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         from pysurvey import spire_conversions
         import astropy.coordinates.distances as dist
         (yplot,yerr)=spire_conversions(yplot,'kkms','lsol',xplot*115.3,sr=meas['head']['omega_s'],
-                              z=meas['head']['z'],dist=dist.Distance(z=meas['head']['z']).Mpc,inerr=yerr)
+                              z=meas['head']['z'],dist=meas['head']['dl'],inerr=yerr)
         yplot*=meas['head']['lw']
         yerr*=meas['head']['lw']              
     
@@ -750,7 +757,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         yerr2=meas2['sigma']
         if lum:
             (yplot2,yerr2)=spire_conversions(yplot2,'kkms','lsol',xplot2*115.3,sr=meas2['head']['omega_s'],
-                              z=meas2['head']['z'],dist=dist.Distance(z=meas2['head']['z']).Mpc,inerr=yerr2)
+                              z=meas2['head']['z'],dist=meas2['head']['dl'],inerr=yerr2)
             yplot2*=meas2['head']['lw']
             yerr2*=meas2['head']['lw']
     
@@ -867,7 +874,12 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     # A bit more tweaking of the plot:
     plt.xlim([0,14])
     #plt.ylim([1e-3,1e1])
+    sigmaylim=3.0
     ylimuse=np.all([yplot0>0,yplot0/yerr0>3.0],axis=0)
+    while np.sum(ylimuse)==0:  # In case we don't have any real 3 sigma...
+        sigmaylim-=0.5
+        ylimuse=np.all([yplot0>0,yplot0/yerr0>sigmaylim],axis=0)
+    
     if meas2:
         plt.ylim([np.min(np.concatenate((yplot0[yplot0>0]-1.0*yerr0[yplot0>0],yplot2[yplot2>0]-1.0*yerr2[yplot2>0]),axis=0)),
               np.max(np.concatenate((yplot0[yplot0>0]+1.0*yerr0[yplot0>0],yplot2[yplot2>0]+1.0*yerr2[yplot2>0]),axis=0))])
