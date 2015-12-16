@@ -11,6 +11,7 @@ from config import *
 
 # JRK 8/13/15: Was missing title in calls to plotconditional and plotconditional2.
 # JRK 9/22/15: Don't replicate the import calls from pyradexnest_analyze_tools
+# JRK 12/16/15: Check that there are no absurd "modemean" values for radex fluxes.
 
 #################################################################################
 
@@ -56,6 +57,9 @@ nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm
            r'log(Ratio L$_{warm}$/L$_{cold}$)',r'log(Ratio P$_{warm}$/P$_{cold}$)',r'log(Ratio <N>$_{warm}$/<N>$_{cold}$)']
 if sled_to_j:
     for x in range(sled_to_j): nicenames.append(r'Flux J='+str(x+1)+'-'+str(x)+' [K]')
+
+# Check if we need to fix a completely absurd modemean in the fluxes from radex
+fix_flux_modemean(s,datsep,plotinds)
 
 # Determine plot xrange from the prior limits.
 xrange=np.ndarray([n_dims,2])
