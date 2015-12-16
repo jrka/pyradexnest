@@ -28,6 +28,9 @@
 #    dist.Distance(z=meas2['head']['z']).Mpc. You MUST RERUN measdata_pickle in
 #    your directory if your measdata.pkl file was created before today, it will be missing
 #    that number in the header!
+# JRK 12/16/15: Fixed bug introduced by 8/28 change - 'all' was a pointer to '0' in the 
+#    case of one mode,  which messes up the normalization that is done in pyradexnest_analyze.py.
+#    Now use copy.deepcopy(dists[0]).
 
 import numpy as np
 import astropy.units as units
@@ -35,6 +38,7 @@ import astropy.units as units
 import matplotlib.pyplot as plt
 import pyradex as pyradex
 import matplotlib.mlab as mlab
+import copy
 
 def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
     # Based on the number of parameters, return the information needed for plotting.
@@ -251,7 +255,7 @@ def get_dists(distfile,s,datsep,maxcind,grid_points=40):
         pickle.dump(dists1d, open(distfile.replace('.pkl','1d.pkl'), "wb") )
         print 'Saved distributions.pkl'    
         
-    if nmodes==1: dists['all']=dists[0] # Redundancy used later... at least not on disk :-/
+    if nmodes==1: dists['all']=copy.deepcopy(dists[0]) # Redundancy used later... at least not on disk :-/
         
     return dists
     
