@@ -59,7 +59,7 @@ if sled_to_j:
     for x in range(sled_to_j): nicenames.append(r'Flux J='+str(x+1)+'-'+str(x)+' [K]')
 
 # Check if we need to fix a completely absurd modemean in the fluxes from radex
-fix_flux_modemean(s,datsep,plotinds)
+if sled_to_j: fix_flux_modemean(s,datsep,plotinds)
 
 # Determine plot xrange from the prior limits.
 xrange=np.ndarray([n_dims,2])

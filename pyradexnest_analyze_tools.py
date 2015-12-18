@@ -32,6 +32,7 @@
 #    case of one mode,  which messes up the normalization that is done in pyradexnest_analyze.py.
 #    Now use copy.deepcopy(dists[0]).
 #    Also added fix_flux_modemean, see its description for more info.
+# JRK 12/18/15: fix_flux_modemean now recalculates all fluxes 'modemean' and 'modesigma'
 
 import numpy as np
 import astropy.units as units
@@ -1092,30 +1093,17 @@ def fix_flux_modemean(s,datsep,plotinds):
     # which are derived from the CDF.
     # modemean(x) = Sum_i (x_i * weight_i) for all points in mode.
     # modesigma(x) = SQRT (  Sum_i (x_i^2 * weight_i) - Mean^2)
-    
-    # Check for an "absurd" modemean, and calculate a new one if necessary.
-    # This is if any of the fluxes are 1e10 away from the median
     nmodes=len(s['modes'])
     for m in range(nmodes):
         fluxes=[s['modes'][m]['mean'][x] for x in plotinds[2]]
         for i, f in enumerate(fluxes):
-            #x=datsep[m][:,plotinds[2][i]+2]
-            #w=datsep[m][:,0]
-            #mean=np.sum(x*w)
-            #sigma=np.sqrt(np.sum(x**2*w)-mean**2)
-            #print mean,s['modes'][m]['mean'][plotinds[2][i]],sigma,s['modes'][m]['sigma'][plotinds[2][i]]
-            if f-np.median(fluxes) > 1e10:
-                x=datsep[m][:,plotinds[2][i]+2]
-                w=datsep[m][:,0]
-                good=[np.abs(x-np.median(x))<1e10]
-                print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[2][i]], s['modes'][m]['sigma'][plotinds[2][i]]
-                mean=np.sum(x[good]*w[good])
-                sigma=np.sqrt(np.sum(x[good]**2*w[good])-mean**2)
-                s['modes'][m]['mean'][plotinds[2][i]]=mean
-                s['modes'][m]['sigma'][plotinds[2][i]]=sigma
-                print 'with ',mean,sigma
-                
-        
-        
-        
-
+            # Redo calculations for all fluxes.
+            x=datsep[m][:,plotinds[2][i]+2]
+            w=datsep[m][:,0]
+            good=[np.abs(x-np.median(x))<1e10]
+            print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[2][i]], s['modes'][m]['sigma'][plotinds[2][i]]
+            mean=np.sum(x[good]*w[good])
+            sigma=np.sqrt(np.sum(x[good]**2*w[good])-mean**2)
+            s['modes'][m]['mean'][plotinds[2][i]]=mean
+            s['modes'][m]['sigma'][plotinds[2][i]]=sigma
+            print 'with ',mean,sigma
