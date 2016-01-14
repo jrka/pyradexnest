@@ -12,8 +12,13 @@ from config import *
 # JRK 8/13/15: Was missing title in calls to plotconditional and plotconditional2.
 # JRK 9/22/15: Don't replicate the import calls from pyradexnest_analyze_tools
 # JRK 12/16/15: Check that there are no absurd "modemean" values for radex fluxes.
+# JRK 1/14/16: Added "simplify" keyword to the calls to plotting routines.
+#    Hardcoded here, default is False. If Simplify=True, then things like the titles
+#    and other annotations are not included on the plots.
 
 #################################################################################
+
+simplify=False
 
 #### LOAD THE STATS
 title=os.getcwd()
@@ -128,13 +133,13 @@ doplot=True
 # For now....
 if doplot:
     plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
-        xr=xrange,title=title,norm1=norm1,colors=colors)    
+        xr=xrange,title=title,norm1=norm1,colors=colors,simplify=simplify)    
     plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
-        xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas)
+        xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas,simplify=simplify)
     
-    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title)
-    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title)
+    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,simplify=simplify)
+    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,simplify=simplify)
     
-    plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j)
+    plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j,simplify=simplify)
     
-    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,colors=colors)
+    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,colors=colors,simplify=simplify)
