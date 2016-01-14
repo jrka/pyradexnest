@@ -393,15 +393,16 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
         axarr[gridinds].set_xlabel(nicenames[i])  # x-axis labels
         axarr[gridinds].set_xlim(xr[i])           # x-axis ranges.
         if norm1: axarr[gridinds].set_ylim(0,1)   # y-axis ranges
-        
-    axarr[0][0].annotate('ln(like):',xy=(0.8,0.9),xycoords='axes fraction')
-    for m,mode in enumerate(s['modes']): 
-        try:
-            axarr[0][0].annotate('%.2f' % mode['local evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
-            #axarr[0][0].text(4,0.9-0.1*m,,color=[modecolors[m][0],modecolors[m][1],1])
-        except:
-            axarr[0][0].annotate('%.2f' % mode['local log-evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
-            #axarr[0][0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
+    
+    if not simplify:   
+        axarr[0][0].annotate('ln(like):',xy=(0.8,0.9),xycoords='axes fraction')
+        for m,mode in enumerate(s['modes']): 
+            try:
+                axarr[0][0].annotate('%.2f' % mode['local evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+                #axarr[0][0].text(4,0.9-0.1*m,,color=[modecolors[m][0],modecolors[m][1],1])
+            except:
+                axarr[0][0].annotate('%.2f' % mode['local log-evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+                #axarr[0][0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
 
     plt.draw()
     plt.savefig('fig_marginalized.png')
