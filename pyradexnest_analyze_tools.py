@@ -33,6 +33,8 @@
 #    Now use copy.deepcopy(dists[0]).
 #    Also added fix_flux_modemean, see its description for more info.
 # JRK 12/18/15: fix_flux_modemean now recalculates all fluxes 'modemean' and 'modesigma'
+# JRK 1/21/16: Added plot definitions for multiple molecule case.
+#    Eventually can make all compatible with each other.
 
 import numpy as np
 import astropy.units as units
@@ -42,11 +44,80 @@ import pyradex as pyradex
 import matplotlib.mlab as mlab
 import copy
 
+def define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw,compare=False):
+   
+    mult=np.ones(n_params,'i') # Multiplication is not used in RADEX modeling.
+    add=np.zeros(n_params,'f') # Fill in later
+    ccolor='b' if not compare else 'k'
+    colors=np.array([ccolor for x in range(n_params)])
+   
+    if n_comp==1:
+        parameters=["h2den1","tkin1","cdmol1","ff1"]
+        for i in range(n_mol-1): parameters.append('xmol'+str(i+1))
+        for i in ["lum1","press1","bacd1"]: parameters.append(i)
+        if sled_to_j: 
+            for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m) for i in range(1,sled_to_j+1)])
+        add[[2,4,6]]=lw
+        sledcolors=['b'] if not compare else ['#6495ED']
+        
+        plotinds=[[0,1,2,3],[n_dims+i for i in range(3)]] # Primary 4 parameters, Secondary 3
+        plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1)) # Flux likelihoods, Main molecule
+        plotinds.append([4+i for i in range(n_mol-1)]) # NEW, secondary molecule abundances
+        # NEW, secondary molecule flux likelihoods
+        if sled_to_j:
+            for m in range(n_mol-1): 
+                plotinds.append([n_dims+np.sum(n_sec)+(m+1)*sled_to_j+i for i in range(sled_to_j)])
+        
+    elif n_comp==2:
+        parameters = ["h2den1","tkin1","cdmol1","ff1","h2den2","tkin2","cdmol2","ff2"]
+        for i in range(n_mol-1): parameters.append('xmol'+str(i+1)+'c')
+        for i in range(n_mol-1): parameters.append('xmol'+str(i+1)+'w')
+        for i in ["lum1","press1","bacd1","lum2","press2","bacd2",
+              "lumratio","pressratio","bacdratio"]: parameters.append(i)
+        if sled_to_j:
+            for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m)+"c" for i in range(1,sled_to_j+1)]) # Cold
+            for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m)+"w" for i in range(1,sled_to_j+1)]) # Warm
+
+        add[[2,6,8,10,11,13]]=lw
+        
+        # Change the colors for the warm component
+        # But first, if compare, don't use blue or black.
+        if compare: colors[:]='#6495ED'
+        wcolor='r' if not compare else 'm'
+        rcolor='k' if not compare else 'gray'
+        colors[[4,5,6,7]]=wcolor  # Primary parameters
+        colors[[n_comp*4+(n_mol-1)+i for i in range(n_mol-1)]]=wcolor # Xmol
+        colors[[n_dims+i for i in range(3,6)]]=wcolor # Secondary parameters
+        colors[[n_dims+i for i in range(6,9)]]=rcolor # Ratios
+        colors[[n_dims+9+sled_to_j*n_mol+i for i in range(sled_to_j)]]=wcolor # Flux likelihoods
+
+        sledcolors=['b','r'] if not compare else ['#6495ED','m'] 
+        
+        plotinds=[[0,1,2,3,4,5,6,7],[n_dims+i for i in range(6)],[n_dims+i for i in range(7,10)]]
+        # Main molecule, cold then warm all together
+        moladd=np.concatenate([np.arange(sled_to_j),np.arange(sled_to_j)+sled_to_j*n_mol])
+        plotinds.append([n_dims+np.sum(n_sec)+i for i in moladd])
+        # NEW, secondary molecule abundances
+        plotinds.append([8+i for i in range((n_mol-1)*2)])
+        # NEW, secondary molecule flux likelihoods, each molecule includes cold then warm all together
+        if sled_to_j:
+            for m in range(n_mol-1):
+               moladd=np.concatenate([np.arange(sled_to_j),np.arange(sled_to_j)+sled_to_j*n_mol])
+               plotinds.append([n_dims+np.sum(n_sec)+(m+1)*sled_to_j+i for i in moladd])
+
+    # Check that we have the right number of parameters!
+    if n_params != len(parameters):
+        raise Exception('Number of parameters calculation is off!')
+
+    return [parameters,add,mult,colors,plotinds,sledcolors]
+
 def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
     # Based on the number of parameters, return the information needed for plotting.
     # If this is a comparison, set compare=True, as this changes the colors to be used.
+    
+    n_comp=1 if n_dims==4 else 2 # Added 1/21 for compatibility with multi molecule.
 
-    if n_dims==4:  # 1 component
+    if n_comp==1:  # 1 component
         parameters = ["h2den1","tkin1","cdmol1","ff1","lum1","press1","bacd1"] 
         add=[0,0,lw,0, lw,0,lw,]
         mult=[1,1,1,1, 1,1,1] # Multiplication is NOT something used for CO RADEX modeling.
@@ -62,7 +133,7 @@ def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
             mult.append(1)
             colors.append('#6495ED') if compare else colors.append('k')
         plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1))
-    elif n_dims==8:  # 2 component
+    elif n_comp==2:  # 2 component
         parameters = ["h2den1","tkin1","cdmol1","ff1",
                       "h2den2","tkin2","cdmol2","ff2",
                       "lum1","press1","bacd1",
