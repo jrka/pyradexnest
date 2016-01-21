@@ -35,6 +35,8 @@
 # JRK 12/18/15: fix_flux_modemean now recalculates all fluxes 'modemean' and 'modesigma'
 # JRK 1/21/16: Added plot definitions for multiple molecule case.
 #    Eventually can make all compatible with each other.
+#    Also, in all cases, plotinds[2] are the secondary parameter ratios. Blank for 1 component.
+#    This means plotinds[3] are the flux likelihoods, no matter how many components.
 
 import numpy as np
 import astropy.units as units
@@ -60,7 +62,7 @@ def define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw,com
         add[[2,4,6]]=lw
         sledcolors=['b'] if not compare else ['#6495ED']
         
-        plotinds=[[0,1,2,3],[n_dims+i for i in range(3)]] # Primary 4 parameters, Secondary 3
+        plotinds=[[0,1,2,3],[n_dims+i for i in range(3)],[]] # Primary 4 parameters, Secondary 3, none for ratio
         plotinds.append(range(n_dims+np.sum(n_sec),n_dims+np.sum(n_sec)+sled_to_j,1)) # Flux likelihoods, Main molecule
         plotinds.append([4+i for i in range(n_mol-1)]) # NEW, secondary molecule abundances
         # NEW, secondary molecule flux likelihoods
@@ -123,7 +125,7 @@ def define_plotting(n_dims,n_sec,sled_to_j,lw,compare=False):
         mult=[1,1,1,1, 1,1,1] # Multiplication is NOT something used for CO RADEX modeling.
         colors=['b','b','b','b','b','b','b']
         if compare: colors2=['k','k','k','k','k','k','k']
-        plotinds=[[0,1,2,3],[4,5,6]]
+        plotinds=[[0,1,2,3],[4,5,6],[]] # 1/21/16: add empty plotinds[2] for ratios
         sledcolors=['b']
         if compare: sledcolors=['#6495ED']
         # Add if we also have likelihoods CO fluxes, append the required information for the likelihood plot.
@@ -773,7 +775,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     
     # And if we have the SLED likelihoods... those are in plotinds[3].  ONLY for the run we are plotting... no comparison.
     if sled_to_j:
-        sledinds=plotinds[3] if n_dims==8 else plotinds[2]
+        sledinds=plotinds[3] # if n_dims==8 else plotinds[2], changed 1/21/16
 
         if asymerror:
             yfill1=asymerror['-1 Sigma'][sledinds]
@@ -1036,12 +1038,7 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
                  plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False):
 
-    if n_dims > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
-        useind=3
-    else: 
-        useind=2
-    
-    sled_to_j=len(plotinds[useind])
+    sled_to_j=len(plotinds[3]) # Was useind=3 if n_dims>7, 2 if not, but now just 3. 1/21/16
     if n_dims==8: sled_to_j=sled_to_j/2
     nx=int(np.ceil(np.sqrt(sled_to_j)))
     ny=int(np.ceil(sled_to_j/np.ceil(np.sqrt(sled_to_j))))
@@ -1060,7 +1057,7 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     #    count-=1
     #if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
     
-    for g,j in enumerate(plotinds[useind]):      
+    for g,j in enumerate(plotinds[3]):      
         gridinds=np.floor((np.mod(g,sled_to_j))/nx),np.mod(np.mod(g,sled_to_j),nx)
         if not dists2: # Don't do these if we are overplotting a 2nd dist, too confusing.
             for m,mode in enumerate(s['modes']):
@@ -1093,14 +1090,10 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
         if gridinds[1]==0: axarr[gridinds].set_ylabel("Relative Likelihood")
         
     if dists2:
-        if n_dims2 > 7: # Two component, use 7 to account for beta/tau sometimes in 1 component.
-            useind2=3
-        else: 
-            useind2=2
-        sled_to_j2=len(plotinds2[useind2])
+        sled_to_j2=len(plotinds2[3])
         if n_dims >7: sled_to_j2=sled_to_j2/2
         try: 
-            for g,j in enumerate(plotinds2[useind2]):
+            for g,j in enumerate(plotinds2[3]):
                 gridinds=np.floor((np.mod(g,sled_to_j2))/nx),np.mod(g,nx)
                 yplot2=dists2['all'][j][1,:]
                 axarr[gridinds].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
@@ -1167,15 +1160,15 @@ def fix_flux_modemean(s,datsep,plotinds):
     # modesigma(x) = SQRT (  Sum_i (x_i^2 * weight_i) - Mean^2)
     nmodes=len(s['modes'])
     for m in range(nmodes):
-        fluxes=[s['modes'][m]['mean'][x] for x in plotinds[2]]
+        fluxes=[s['modes'][m]['mean'][x] for x in plotinds[3]] # 1/21/16, was 2, should be 3
         for i, f in enumerate(fluxes):
             # Redo calculations for all fluxes.
-            x=datsep[m][:,plotinds[2][i]+2]
+            x=datsep[m][:,plotinds[3][i]+2]
             w=datsep[m][:,0]
             good=[np.abs(x-np.median(x))<1e10]
-            print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[2][i]], s['modes'][m]['sigma'][plotinds[2][i]]
+            print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[3][i]], s['modes'][m]['sigma'][plotinds[3][i]]
             mean=np.sum(x[good]*w[good])
             sigma=np.sqrt(np.sum(x[good]**2*w[good])-mean**2)
-            s['modes'][m]['mean'][plotinds[2][i]]=mean
-            s['modes'][m]['sigma'][plotinds[2][i]]=sigma
+            s['modes'][m]['mean'][plotinds[3][i]]=mean
+            s['modes'][m]['sigma'][plotinds[3][i]]=sigma
             print 'with ',mean,sigma
