@@ -81,6 +81,7 @@ to and including this J_upper value.
 - taulimit, an upper and lower limit for acceptable optical depths. Lines outside of this 
 range will not be used for likelihood calculations. The RADEX manual does not recommend 
 optical depths above 100, where the assumptions for the escape probability method break down.
+- tbg, the dust temperature to use in RADEX. Default is 2.73 K if not specified.
     
 4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  
 

@@ -26,3 +26,7 @@ def myprior(cube, ndim, nparams):
         cube[1]=cube[1]*3+0.5
 # 4) Normalize the plots so that the maximum of a marginalized plot is 1?
 norm1=True
+# 5) Lower and upper limits for tau; lines outside this range will not be used.
+taulimit=[-0.9,100]
+# 6) Background temperature to use in RADEX? If not specified, default of 2.73 K is used.
+tbg=2.73

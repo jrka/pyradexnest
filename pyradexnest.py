@@ -66,7 +66,7 @@ if sled_to_j and n_dims==8:
 n_params = len(parameters)
 
 # Created our measured data pickle.
-measdata_pickle(measdatafile,sled_to_j=sled_to_j,taulimit=taulimit)
+measdata_pickle(measdatafile,sled_to_j=sled_to_j,taulimit=taulimit,tbg=tbg)
 
 # Before starting, record the parameter limits, min and max of prior cube.
 # Outdated; now this is recorded in config.py.  But in case you've changed it...

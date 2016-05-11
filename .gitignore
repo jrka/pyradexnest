@@ -7,3 +7,11 @@
 *prior_cube.txt
 ignore
 */results_*
+rv3.iint.ju
+rv3.lum.ju
+rv3.pop.ju
+photocc.out
+radexv3.beta
+.DS_Store
+*.aux
+*.log

@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 # to explicitly set the luminosity distance.
 
 # read in measdata ######################################################################
-def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
+def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0],tbg=2.73):
     from astropy import constants as const
     from astropy import units as units
     import astropy.coordinates.distances as dist
@@ -79,7 +79,7 @@ def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0]):
 
     meas = {'J_up': jup, 'flux':flux, 'sigma':sigma, 
             'masscut':NCO_dv_cut, 'lengthcut': gallength, 'head':head, 'areacm':np.log10(s_area*units.pc.to('cm')**2),
-            'sigmacut':3.0, 'taulimit':taulimit, 'addmass':addmass, 'sled_to_j':sled_to_j}
+            'sigmacut':3.0, 'taulimit':taulimit, 'addmass':addmass, 'sled_to_j':sled_to_j, 'tbg':tbg}
     print meas
     
     pickle.dump(meas, open("measdata.pkl", "wb") )
@@ -125,7 +125,7 @@ def myloglike(cube, ndim, nparams):
         dat1=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
+                          tbg=meas['tbg'], species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                           return_dict=True)
         # dat['J_up'] returned as strings; this is fine for CO...
         jup1=np.array(map(float,dat1['J_up']))
@@ -138,7 +138,7 @@ def myloglike(cube, ndim, nparams):
         # At this time it is too slow to use this.
         #R = pyradex.Radex(collider_densities={'h2':np.power(10,cube[0])}, 
         #     temperature=np.power(10,cube[1]), column=np.power(10,cube[2]),
-        #     tbackground=2.73,species=meas['head']['mol'],deltav=1.0,debug=False)
+        #     tbackground=meas['tbg'],species=meas['head']['mol'],deltav=1.0,debug=False)
         #niter=R.run_radex(validate_colliders=False)
         #model1=1.064575*R.T_B*np.power(10,cube[3]) # Integrating over velocity, and Filling Factor
         #model1=model1.value # Hatred of units in my way
@@ -161,7 +161,7 @@ def myloglike(cube, ndim, nparams):
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                                temperature=np.power(10,cube[5]), column=np.power(10,cube[6]), 
                                collider_densities={'H2':np.power(10,cube[4])},
-                               tbg=2.73, species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
+                               tbg=meas['tbg'], species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                                return_dict=True)
             jup2=np.array(map(float,dat2['J_up']))
             model2=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])

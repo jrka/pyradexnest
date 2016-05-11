@@ -28,3 +28,5 @@ def myprior(cube, ndim, nparams):
 norm1=True
 # 5) Lower and upper limits for tau; lines outside this range will not be used.
 taulimit=[-0.9,100]
+# 6) Background temperature to use in RADEX? If not specified, default of 2.73 K is used.
+tbg=2.73
