@@ -37,6 +37,9 @@
 #    Eventually can make all compatible with each other.
 #    Also, in all cases, plotinds[2] are the secondary parameter ratios. Blank for 1 component.
 #    This means plotinds[3] are the flux likelihoods, no matter how many components.
+# JRK 1/22/16: Two new inputs for plotmarginalsled, useind=3 and mol='' is default behavior for plotting the 
+#  primary molecule. Changing useind to 5, 6, etc. will plot the likelihoods for secondary molecules.
+#  Putting a string for mol will add the molecule name to the filename.
 
 import numpy as np
 import astropy.units as units
@@ -59,7 +62,7 @@ def define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw,com
         for i in ["lum1","press1","bacd1"]: parameters.append(i)
         if sled_to_j: 
             for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m) for i in range(1,sled_to_j+1)])
-        add[[2,4,6]]=lw
+        add[[2,4+(n_mol-1),6+(n_mol-1)]]=lw
         sledcolors=['b'] if not compare else ['#6495ED']
         
         plotinds=[[0,1,2,3],[n_dims+i for i in range(3)],[]] # Primary 4 parameters, Secondary 3, none for ratio
@@ -80,7 +83,7 @@ def define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw,com
             for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m)+"c" for i in range(1,sled_to_j+1)]) # Cold
             for m in range(n_mol): map(parameters.append,["k"+str(i)+'mol'+str(m)+"w" for i in range(1,sled_to_j+1)]) # Warm
 
-        add[[2,6,8,10,11,13]]=lw
+        add[[2,6,8+(n_mol-1)*2,10+(n_mol-1)*2,11+(n_mol-1)*2,13+(n_mol-1)*2]]=lw
         
         # Change the colors for the warm component
         # But first, if compare, don't use blue or black.
@@ -481,7 +484,84 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
     plt.savefig('fig_marginalized.png')
     print 'Saved fig_marginalized.png'
     
-def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+def plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mol,nicenames,
+                 xr=[[2,6.5],[0.5,3.5],[13,23],[-3,0]],title='',norm1=True,
+                 modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
+                 dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False,meas=0):
+    import matplotlib.mlab as mlab
+
+    nx=n_mol-1
+    ny=1
+    plt.figure(num=1)
+    plt.clf()
+    f, axarr=plt.subplots(ny,nx,num=1,sharey=True,figsize=(4*nx,4*ny))
+    f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
+    f.subplots_adjust(wspace=0.1)
+    if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
+    
+    for g,j in enumerate(plotinds[4]):   
+        gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)
+        if not dists2 and not simplify: # Don't do these if we are overplotting a 2nd dist, too confusing, or Simplify is set!
+            for m,mode in enumerate(s['modes']):
+                if colors[j]=='b': 
+                    modecol=[modecolors[m][0],modecolors[m][1],1]
+                elif colors[j]=='r':
+                    modecol=[1,modecolors[m][1],modecolors[m][0]]
+                elif colors[j]=='g': # Added JRK 1/23/14
+                    modecol=[modecolors[m][0],1,modecolors[m][1]]
+                elif colors[j]=='k': # Added JRK 5/17/14
+                    modecol=[modecolors[m][0],modecolors[m][0],modecolors[m][0]]
+                
+                yplot=dists[m][j][1,:]
+                dx=(dists[m][j][0,1]-dists[m][j][0,0])*mult[j]
+                xx= np.ravel(zip(dists[m][j][0,:]*mult[j]+add[j], dists[m][j][0,:]*mult[j]+add[j] + dx))
+                yy =np.ravel(zip(yplot, yplot))
+                
+                #mp.grid[gridinds[g]].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
+                axarr[gridinds].fill_between(xx-dx,0,yy,color=modecol,alpha=0.2) # color=modecolors[m 
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j],color=modecol,label='Mode')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]+mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                axarr[gridinds].axvline(x=mode['mean'][j]*mult[j]+add[j]-mode['sigma'][j],color=modecol,label='Mode',linestyle='--')
+                ##print mode['maximum'][j]+add[j],mode['sigma'][j]
+            
+        yplot=dists['all'][j][1,:] 
+        axarr[gridinds].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+        #mp.grid[gridinds[g]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
+      
+    # Comparison distributions overplotted.  
+    if dists2:
+        for g,j in enumerate(plotinds2[0]):
+            gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)   
+            yplot2=dists2['all'][j][1,:]
+            axarr[gridinds].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+            axarr[gridinds].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
+    
+    # Ranges and labels
+    #mp.fix_ticks()
+    axarr[0][0].set_ylabel("Likelihood")
+    axarr[1][0].set_ylabel("Likelihood")
+    for i in range(4):
+        gridinds=np.floor((i)/nx),np.mod(i,nx)   
+        axarr[gridinds].set_xlabel(nicenames[i])  # x-axis labels
+        axarr[gridinds].set_xlim(xr[i])           # x-axis ranges.
+        if norm1: axarr[gridinds].set_ylim(0,1)   # y-axis ranges
+    
+    if not simplify:   
+        axarr[0][0].annotate('ln(like):',xy=(0.8,0.9),xycoords='axes fraction')
+        for m,mode in enumerate(s['modes']): 
+            try:
+                axarr[0][0].annotate('%.2f' % mode['local evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+                #axarr[0][0].text(4,0.9-0.1*m,,color=[modecolors[m][0],modecolors[m][1],1])
+            except:
+                axarr[0][0].annotate('%.2f' % mode['local log-evidence'],xy=(0.8,0.8-0.1*m),xycoords='axes fraction',color=[modecolors[m][0],modecolors[m][1],1])
+                #axarr[0][0].text(4,0.9-0.1*m,'%.2f' % mode[u'local log-evidence'],color=[modecolors[m][0],modecolors[m][1],1])
+
+    plt.draw()
+    plt.savefig('fig_marginalized_xmol.png')
+    print 'Saved fig_marginalized_xmol.png'
+    
+def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,nicenames,
                  xr=[[2,6.5],[0.5,3.5],[13,23],[-3,0]],title='',norm1=True,
                  modecolors=['g','m','y','c'],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],meas=0,
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
@@ -559,7 +639,7 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
     plt.savefig('fig_marginalized2.png')
     print 'Saved fig_marginalized2.png'
     
-    if n_dims > 7: # JRK 1/23/14, instead of n_dims == 8
+    if n_comp==2: # JRK 1/21/16, instead of n_dims > 7, JRK 1/23/14, instead of n_dims == 8
         #mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1)) #
         #if not simplify: mp.title(title,xy=(0.5,0.97))
         f, axarr=plt.subplots(ny,nx,num=3,sharey=True,figsize=(4*nx,4*ny))
@@ -595,7 +675,7 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenam
         plt.savefig('fig_marginalized2ratio.png')
         print 'Saved fig_marginalized2ratio.png'  
     
-def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,
                  modecolors=['g','m','y','c'],simplify=False,title=''):
     import matplotlib.cm as cm
     #mp = multipanel(dims=(n_dims-1,n_dims-1),figID=4,diagonal='lower',panel_size=(3,3)) #
@@ -607,7 +687,11 @@ def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicen
     f.subplots_adjust(wspace=0,hspace=0)
     if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
     
-    for g,i in enumerate(plotinds[0]):
+    # JRK 1/21/16: Add X_mol if we have multiple molecules.
+    c_plotinds=plotinds[0]
+    if n_mol>1: c_plotinds=[item for sublist in [plotinds[0],plotinds[4]] for item in sublist]
+    
+    for g,i in enumerate(c_plotinds):
         for j in range(i):
             gridinds=(g-1,j)
             #ind=(n_dims-1) * (i-1) + j 
@@ -658,10 +742,12 @@ def plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicen
 
     ###### Still need to get everything aligned right.  Fix ticks moves the outer boxes
     #mp.fix_ticks()
-    for g,i in enumerate(plotinds[0]):
+    for g,i in enumerate(c_plotinds):
         for j in range(i):
             #ind=(n_dims-1)-i+j+(n_dims-2)*(n_dims-1-i) # Wow.
             gridinds=(g-1,j)
+            print np.min(dists['all'][i,j][:,:,1]), np.max(dists['all'][i,j][:,:,1]),mult[j],add[j]
+            print np.min(dists['all'][i,j][:,:,0]), np.max(dists['all'][i,j][:,:,0]),mult[j],add[j]
             axarr[gridinds].set_xlim([np.min(dists['all'][i,j][:,:,1]*mult[j]+add[j]),np.max(dists['all'][i,j][:,:,1]*mult[j]+add[j])])
             axarr[gridinds].set_ylim([np.min(dists['all'][i,j][:,:,0]*mult[i]+add[i]),np.max(dists['all'][i,j][:,:,0]*mult[i]+add[i])])
     
@@ -728,14 +814,22 @@ def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     plt.savefig('fig_conditional2.png')
     print 'Saved fig_conditional2.png'
     
-def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',lum=False,meas2=0,cube2=[],setyr=[0,0],
-             colors=['b','r'],colors2=['#6495ED','m'],n_dims2=0,simplify=False,asymerror=0,
-             sled_to_j=0,newplot=True,legend=True):
+def plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,title='',lum=False,meas2=0,cube2=[],setyr=[0,0],
+             colors=['b','r'],colors2=['#6495ED','m'],n_dims2=0,n_comp2=0,simplify=False,asymerror=0,
+             sled_to_j=0,newplot=True,legend=True,mol='',alpha=0.2,plotmax=True):
     # 12/3/13: Fixed bug if meas2 and meas have different number of elements (esp. diff # of non-upper-limits).
     # 4/2/14: Use asymerror=Table if you want to use the assymetric error regions for plotting.
     # 8/27/15: Set newplot=False to plot to an existing figure, and not save the png. Also skips the next plots.
     #    Can also set legend=False if want to exclude the legend (for same purpose, for example)
     #    y axis limit is now set using only those points of values > 0 and S/N > 3 (else too small ylimit)
+    # 1/21/16: Use n_comp==2 instead of n_dims==8. Get rid of the n_dims mod 4 stuff, which was related
+    #   to the dust correction, which is not used here.
+    # 1/22/16: Allow input mol=string, to do secondary molecules. If blank, do primary molecule.
+    # 3/26/16: Allow input alpha, the alpha value for the SLED likelihoods. Default 0.2.
+    #    Allow plotmax=False to not plot the maximum likelihood lines (which calls RADEX). Default True.
+    
+    if mol=='': mol=meas['head']['mol']
+    
     if newplot:
         plt.figure(6,figsize=(10,8))
         plt.subplots_adjust(bottom=0.08,left=0.08,right=0.97,top=0.97) # LEFT 0.12 JRK 4/6/14
@@ -748,9 +842,12 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     plt.yscale('log')
     if not simplify: plt.title(title)
    
-    # First, plot the data.
-    ok=[meas['flux']!=0]
-    ul=[meas['flux']==0]
+    # First, plot the data. 1/21/16: for given molecule only.
+    # 3/25/16: For backwards compatibility, if there is no meas['mol'], add it.
+    if 'mol' not in meas.keys():
+        meas['mol']=np.array([meas['head']['mol'] for x in meas['flux']])
+    ok=np.all([meas['flux']!=0,meas['mol']==mol],axis=0)#[meas['flux']!=0]
+    ul=np.all([meas['flux']==0,meas['mol']==mol],axis=0)#[meas['flux']==0]
 
     xplot=meas['J_up']
     yplot=meas['flux']
@@ -760,23 +857,30 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     
     # Did we do optical depth corrections?  If so, plot: the data with the MEAN lambda0 and beta results AND data with the input 
     #  lambda0 and beta, AND of course the original data.
-    if np.mod(n_dims,4)==2:
-        label=['Data (Median Corr)','Data (Input Corr)','Data (No Corr)']
-        xplot=[xplot,xplot,xplot]
-        corr1=tau_corr(meas['J_up'],modemed[n_dims-2],modemed[n_dims-1])
-        corr2=tau_corr(meas['J_up'],meas['head']['beta'],meas['head']['lambda0'])
-        yplot=[yplot/corr1,yplot/corr2,yplot]
-        yerr=[yerr/corr1,yerr/corr2,yerr]
-    else: 
-        label=['Data']
-        xplot=[xplot]
-        yplot=[yplot]
-        yerr=[yerr]
+    #if np.mod(n_dims,4)==2:
+    #    label=['Data (Median Corr)','Data (Input Corr)','Data (No Corr)']
+    #    xplot=[xplot,xplot,xplot]
+    #    corr1=tau_corr(meas['J_up'],modemed[n_dims-2],modemed[n_dims-1])
+    #    corr2=tau_corr(meas['J_up'],meas['head']['beta'],meas['head']['lambda0'])
+    #    yplot=[yplot/corr1,yplot/corr2,yplot]
+    #    yerr=[yerr/corr1,yerr/corr2,yerr]
+    #else: 
+    label=['Data']
+    xplot=[xplot]
+    yplot=[yplot]
+    yerr=[yerr]
     
     # And if we have the SLED likelihoods... those are in plotinds[3].  ONLY for the run we are plotting... no comparison.
-    if sled_to_j:
-        sledinds=plotinds[3] # if n_dims==8 else plotinds[2], changed 1/21/16
+    if mol==meas['head']['mol']: 
+        if sled_to_j: sledinds=plotinds[3] # if n_dims==8 else plotinds[2], changed 1/21/16
+        xmolind1=0
+        xmolind2=0
+    else:
+        if sled_to_j: sledinds=plotinds[5+np.where(np.array(meas['head']['secmol'])==mol)[0][0]]
+        xmolind1=n_comp*4+np.where(np.array(meas['head']['secmol'])==mol)[0][0]
+        xmolind2=n_comp*4+(len(meas['head']['secmol']))+np.where(np.array(meas['head']['secmol'])==mol)[0][0]
 
+    if sled_to_j:
         if asymerror:
             yfill1=asymerror['-1 Sigma'][sledinds]
             yfill2=asymerror['+1 Sigma'][sledinds]
@@ -801,13 +905,14 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
             yfill1*=meas['head']['lw']
             yfill2*=meas['head']['lw']
         
-        if n_dims==4:    
-            plt.fill_between(range(1,sled_to_j+1,1), yfill1, yfill2, where=yfill2>=yfill1, facecolor='gray', interpolate=True)
+        if n_comp==1:    
+            plt.fill_between(range(1,sled_to_j+1,1), yfill1, yfill2, where=yfill2>=yfill1, 
+                 facecolor='gray', interpolate=True,alpha=alpha)
         else:
             plt.fill_between(range(1,sled_to_j+1,1), yfill1[0:sled_to_j], yfill2[0:sled_to_j], 
-                where=yfill2[0:sled_to_j]>=yfill1[0:sled_to_j], facecolor='b', interpolate=True,alpha=0.2)
+                where=yfill2[0:sled_to_j]>=yfill1[0:sled_to_j], facecolor='b', interpolate=True,alpha=alpha)
             plt.fill_between(range(1,sled_to_j+1,1), yfill1[sled_to_j:], yfill2[sled_to_j:], 
-                where=yfill2[sled_to_j:]>=yfill1[sled_to_j:], facecolor='r', interpolate=True,alpha=0.2)
+                where=yfill2[sled_to_j:]>=yfill1[sled_to_j:], facecolor='r', interpolate=True,alpha=alpha)
 
     if lum:
         from pysurvey import spire_conversions
@@ -829,8 +934,8 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
                   fc=['black','green','purple'][j], ec=['black','green','purple'][j], head_width=0.3, head_length=-headlen[i],overhang=1) 
                   
     if meas2: 
-        ok2=[meas2['flux']!=0]
-        ul2=[meas2['flux']==0]
+        ok2=np.all([meas2['flux']!=0,meas2['mol']==mol],axis=0)#[meas2['flux']!=0]
+        ul2=np.all([meas2['flux']==0,meas2['mol']==mol],axis=0)#[meas2['flux']==0]
 
         xplot2=meas2['J_up']
         yplot2=meas2['flux']
@@ -856,9 +961,11 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     w_in=[0,1,2]
     if meas2: w_in=[0,3]
     if simplify and not meas2: w_in=[0]
+    if plotmax==False: w_in=[]
     chisq=[]
     t_n_params=n_params # Temporary n_params, incase we have to replace it with 2
     t_n_dims=n_dims
+    t_n_comp=n_comp
     t_colors=colors
     for w in w_in:
         if w==0: 
@@ -900,16 +1007,19 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
             t_n_params=len(cube2)
             t_n_dims=n_dims2
             t_colors=colors2
+            t_n_comp=n_comp2
         
+        logcol1=cube[2]
+        if xmolind1!=0: logcol1+=cube[xmolind1]
         dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                          temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
+                          temperature=np.power(10,cube[1]), column=np.power(10,logcol1), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                          tbg=2.73, species=mol, velocity_gradient=1.0, 
                           debug=False, return_dict=True)
         dat['FLUX_Kkms']=np.array(map(float,dat['FLUX_Kkms']))*np.power(10,thiscube[3])
         model1=dat['FLUX_Kkms']
         
-        if np.mod(n_dims,4)==2: model1/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
+        #if np.mod(n_dims,4)==2: model1/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         if lum: 
             (model1,trash)=spire_conversions(model1,'kkms','lsol',dat['J_up']*115.3,sr=thismeas['head']['omega_s'],
                               z=thismeas['head']['z'],dist=dist.Distance(z=thismeas['head']['z']).Mpc)
@@ -917,15 +1027,17 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
         plt.plot(dat['J_up'],model1,color=t_colors[0],label=label1,linestyle=linestyle)
         newdat=dat['FLUX_Kkms']
     
-        if t_n_dims>7:
+        if t_n_comp==2:
+            logcol2=cube[6]
+            if xmolind2!=0: logcol2+=cube[xmolind2]
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                           temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
+                           temperature=np.power(10,thiscube[5]), column=np.power(10,logcol2), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                           tbg=2.73, species=mol, velocity_gradient=1.0, 
                            debug=False,return_dict=True)
             dat2['FLUX_Kkms']=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,thiscube[7])
             model2=dat2['FLUX_Kkms']
-            if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
+            #if np.mod(n_dims,4)==2: model2/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
             if lum:
                 (model2,trash)=spire_conversions(model2,'kkms','lsol',dat2['J_up']*115.3,sr=thismeas['head']['omega_s'],
                               z=thismeas['head']['z'],dist=dist.Distance(z=thismeas['head']['z']).Mpc)
@@ -939,7 +1051,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
 
         # Calculate Chi Squared?
         # Need to match "newdat" with meas['flux']
-        if np.mod(n_dims,4)==2: newdat/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
+        #if np.mod(n_dims,4)==2: newdat/=tau_corr(dat['J_up'],cube[n_dims-2],cube[n_dims-1])
         chisq.append(0)
         for i,tflux in enumerate(thismeas['flux'][thisok]):
             temp=newdat[dat['J_up'] == thismeas['J_up'][thisok][i]]
@@ -976,10 +1088,10 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     if legend: plt.legend()
     
     if newplot: 
-        plt.savefig('fig_sled.png')
-        print 'Saved fig_sled.png'
+        plt.savefig('fig_sled_'+mol+'.png')
+        print 'Saved fig_sled_'+mol+'.png'
     else:
-        return
+        return chisq
     
     ######## OPTICAL DEPTH
     plt.figure(7)
@@ -995,23 +1107,23 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
                           collider_densities={'H2':np.power(10,cube[0])},
-                          tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                          tbg=2.73, species=mol, velocity_gradient=1.0, 
                           debug=False,return_dict=True)    
     
-    if n_dims==8: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+    if n_comp==2: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                            temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
-                           tbg=2.73, species=thismeas['head']['mol'], velocity_gradient=1.0, 
+                           tbg=2.73, species=mol, velocity_gradient=1.0, 
                            debug=False,return_dict=True)
     
     plt.plot(dat['J_up'],dat['TAU'],color=colors[0],label='Component 1')
-    if n_dims==8: plt.plot(dat2['J_up'],dat2['TAU'],color=colors[1],label='Component 2')
+    if n_comp==2: plt.plot(dat2['J_up'],dat2['TAU'],color=colors[1],label='Component 2')
 
     plt.xlim([0,14])
     plt.legend()
 
-    plt.savefig('fig_tau.png')
-    print 'Saved fig_tau.png'
+    plt.savefig('fig_tau_'+mol+'.png')
+    print 'Saved fig_tau_'+mol+'.png'
     
     ######## EXCITATION TEMPERATURE
     plt.figure(8)
@@ -1022,7 +1134,7 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
 
     plt.plot(dat['J_up'],dat['T_EX'],color=colors[0],label='Component 1')
     plt.axhline(y=np.power(10,cube[1]),color=colors[0],linestyle='--')
-    if n_dims==8: 
+    if n_comp==8: 
         plt.plot(dat2['J_up'],dat2['T_EX'],color=colors[1],label='Component 2')
         plt.axhline(y=np.power(10,cube[5]),color=colors[1],linestyle='--')
 
@@ -1030,18 +1142,25 @@ def plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title=''
     #plt.ylim([0,1e3])
     plt.legend()
 
-    plt.savefig('fig_tex.png')
-    print 'Saved fig_tex.png'
+    plt.savefig('fig_tex_'+mol+'.png')
+    print 'Saved fig_tex_'+mol+'.png'
     
-def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title='',norm1=True,
+def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,title='',norm1=True,
                  modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],colors=['b','b','b','b','r','r','r','r','b','b','b','r','r','r','k','k','k'],
                  dists2={},colors2=['g','g','g','g','m','m','m','m','g','g','g','m','m','m','gray','gray','gray'],cube2=[],
-                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False):
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False,useind=3,mol=''):
 
-    sled_to_j=len(plotinds[3]) # Was useind=3 if n_dims>7, 2 if not, but now just 3. 1/21/16
-    if n_dims==8: sled_to_j=sled_to_j/2
+    # JRK 1/22/16: Two new inputs, useind=3 and mol='' is default behavior for plotting the 
+    #  primary molecule. Changing useind to 5, 6, etc. will plot the likelihoods for secondary molecules.
+    #  Putting a string for mol will add the molecule name to the filename.
+    
+    sled_to_j=len(plotinds[useind]) # Was useind=3 if n_dims>7, 2 if not, but now just 3. 1/21/16
+    if n_comp==2: sled_to_j=sled_to_j/2
     nx=int(np.ceil(np.sqrt(sled_to_j)))
     ny=int(np.ceil(sled_to_j/np.ceil(np.sqrt(sled_to_j))))
+    
+    plt.figure(9,figsize=(4*nx,4*ny))
+    plt.clf()
     f, axarr=plt.subplots(ny,nx,num=9, sharey=True,figsize=(4*nx,4*ny))
     f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
     f.subplots_adjust(wspace=0.1)
@@ -1057,7 +1176,7 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     #    count-=1
     #if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
     
-    for g,j in enumerate(plotinds[3]):      
+    for g,j in enumerate(plotinds[useind]):      
         gridinds=np.floor((np.mod(g,sled_to_j))/nx),np.mod(np.mod(g,sled_to_j),nx)
         if not dists2: # Don't do these if we are overplotting a 2nd dist, too confusing.
             for m,mode in enumerate(s['modes']):
@@ -1105,8 +1224,9 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
     if sled_to_j<nx*ny:
         for i in -1*(np.arange(nx*ny-sled_to_j)+1): axarr[ny-1][i].axis('off')
     
-    plt.savefig('fig_marginalizedsled.png')
-    print 'Saved fig_marginalizedsled.png'
+    pltfile='fig_marginalizedsled.png' if mol=='' else 'fig_marginalizedsled_'+mol+'.png'
+    plt.savefig(pltfile)
+    print 'Saved '+pltfile
 
 #####################################################################################
 def get_covariance(datsep):

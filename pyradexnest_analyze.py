@@ -15,6 +15,7 @@ from config import *
 # JRK 1/14/16: Added "simplify" keyword to the calls to plotting routines.
 #    Hardcoded here, default is False. If Simplify=True, then things like the titles
 #    and other annotations are not included on the plots.
+# JRK 1/21/16: Added n_comp= 2 or 1 instead of parameterizing by dimensions.
 
 #################################################################################
 
@@ -28,10 +29,13 @@ title=title.split('/')[-1]
 if n_dims==8:
     n_sec=[6,3]
     n_sled=2*sled_to_j
+    n_comp=2
 else:
     n_sec=[3]
     n_sled=sled_to_j
+    n_comp=1
 n_params =n_dims + np.sum(n_sec) + n_sled
+n_mol=1 # For compatibility with multimol plotting
 
 meas=pickle.load(open("measdata.pkl","rb"))
 lw=np.log10(meas['head']['lw'])
@@ -74,7 +78,7 @@ myprior(xrange[:,0],n_dims,n_params)
 myprior(xrange[:,1],n_dims,n_params)
 
 # Squash it down if we have 2 components.
-if n_dims==8:
+if n_comp==2:
     for i in range(4):
         xrange[i,0]=min(xrange[i,0],xrange[i+4,0])
         xrange[i,1]=max(xrange[i,1],xrange[i+4,1])
@@ -134,12 +138,12 @@ doplot=True
 if doplot:
     plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
         xr=xrange,title=title,norm1=norm1,colors=colors,simplify=simplify)    
-    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,nicenames,
         xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas,simplify=simplify)
     
-    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,simplify=simplify)
+    plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,title=title,simplify=simplify)
     plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,simplify=simplify)
     
-    plotsled(meas,cube,n_params,n_dims,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j,simplify=simplify)
+    plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j,simplify=simplify)
     
-    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,colors=colors,simplify=simplify)
+    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,title=title,colors=colors,simplify=simplify)
