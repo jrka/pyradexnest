@@ -39,6 +39,8 @@ n_mol=1 # For compatibility with multimol plotting
 
 meas=pickle.load(open("measdata.pkl","rb"))
 lw=np.log10(meas['head']['lw'])
+# If meas doesn't include tbg, just the old default, 2.73 K
+if 'tbg' not in meas: meas['tbg']=2.73
 
 a = pymultinest.Analyzer(n_params = n_params)
 s = a.get_stats()
