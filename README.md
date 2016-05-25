@@ -1,7 +1,15 @@
 pyradexnest
 ===========
 
-Use Pymultinest, Multinest, and Pyradex to fit spectral energy line distributions and plot the results.
+Use Pymultinest, Multinest, and Pyradex to fit spectral energy line distributions 
+and plot the results.
+
+New, May 2016: pymultinest\_multimol.py (and its buddy, pyradexnest\_tools\_multimol.py) 
+can be used for multiple species or isotopologue modeling (e.g. simultaneously modeling 12CO, 13CO, and C18O). 
+The code assumes these arise from the same gas conditions, with one additional free parameter per species, its relative number abundance to the primary species.
+The primary species is the one listed FIRST in the measdata.txt table.
+The analysis scripts should be compatible with output from both pyradexnest.py and pyradexnest\_multimol.py. 
+Furthermore, pymultinest\_multimol.py should be compatible with single species modeling, if n_mol=1 is set.
 
 ===========
 ## You need:
@@ -48,7 +56,7 @@ And the aforementioned python packages, plus *this* folder,
 1) Enter the directory of your run (e.g. example_run). Note that the remaining operation 
 assumes '.' in your python path, as measdata.txt and config.py (and future files) need to be found.
 
-2) Create a file which contains the data for fitting.  Its name needs to be measdata.txt, in the example_run folder. 
+2) Create a file which contains the data for fitting.  Its name needs to be measdata.txt, in the example_run folder. This file is the same whether using single or multiple molecule modeling.
 Format of this file:
 
 - 8 (or 9) lines of header information:
@@ -63,7 +71,7 @@ Format of this file:
     - Optional line: luminosity distance in Mpc. If not set, this will be calculated from the redshift
     using astropy.coordinates.distances.Distance. Useful for very low redshift.
 - A table with 7 columns:
-    - Molecule (must all be the same for now, and correspond to the molecule.dat filename.)
+    - Molecule (must correspond to molecule.dat filename [case insensitive?] used by pyradex)
     - J_upper
     - J_lower
     - Observed frequency (GHz)
@@ -82,6 +90,9 @@ to and including this J_upper value.
 range will not be used for likelihood calculations. The RADEX manual does not recommend 
 optical depths above 100, where the assumptions for the escape probability method break down.
 - tbg, the dust temperature to use in RADEX. Default is 2.73 K if not specified.
+- If using pymultinest_multimol.py, you will need to add some additional things:
+    -  n_mol, number of molecules/isotopologues being used. 
+    - Make sure the "myprior" function includes the correct range for each molecule's relative abundance.
     
 4) RUN IT, use mpi if desired.  BE IN YOUR DIRECTORY.  
 
@@ -95,6 +106,8 @@ cd example_run
 mpirun -np 4 python ../pyradexnest.py
 ```
     
+Replace pyradexnest.py with pyradexnest\_multimol.py for multi-molecule modeling.
+    
 5) Analyze it. While still in your same working directory, run pyradexnest_analyze.py
 ```
 cd example_run
@@ -103,7 +116,7 @@ python ../pyradexnest_analyze.py
 
 This creates:
 
-- distributions.pkl (Not created each time.)
+- distributions.pkl (Not newly created each time.)
 - Multiple .png figures:
     - fig_conditional.png
     - fig_conditional2.png
@@ -127,8 +140,8 @@ You can combine these files using the template summary_indv.tex.
 1) How long does it take?  
 
 This varies.  I recently ran the following (Mac OS X v10.9.5, 3.2 GHz Intel Core i5, 32 GB RAM):
-1 component, without MPI, 10 minutes
-2 components, mpirun -np 4, 1 hour
+1 component, 1 molecule,  without MPI, 10 minutes
+2 components, 1 molecule, mpirun -np 4, 1 hour
 
 If you've left a simulation running while you 
 were away, you can check how long it took by comparing the modification time of measdata.pkl 
@@ -142,8 +155,6 @@ at low redshifts.  The most important use of the redshift is to determine an ang
 to convert the area from sr to physical area (e.g. pc^2), which is necessary for calculating the mass.
 Now, however, you can explicitly set the luminosity distance to use instead.
 
-3) a) Which molecules can I use?  b) Why do you list the molecule on every line, instead of once, if it always has to be the same?
+3) Which molecules can I use?
 
-a) Any molecule that RADEX can handle where transitions are uniquely described by J_upper.  
-b) Because this same format of file was used with a code that could do multiple molecules, and 
-this may be added in the future to this code.
+Any molecule that RADEX can handle where transitions are uniquely described by J_upper.  
