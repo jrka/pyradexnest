@@ -1,0 +1,27 @@
+5e-08    # Beam (or Source) area in sr
+0.001    # Redshift
+1        # Magnification
+120.0    # Linewidth in km/s
+0.0002   # Molecule/H2 relative abundance
+3.0e+09  # Maximum Mass Limit, solar masses.  Set to -1 to not use.
+1.4      # Molecular weight to use for H2 --> total mass (e.g. He, heavy elements)
+850.0    # Maximum Length Limit, pc.  Set to -1 to not use.
+# Don't add any numbers here: only blank or comment lines until table begins!
+# Molecule   J_up    J_lo   Obs Freq   Int Flux  MeasErr  CalErr
+#                             (GHz)   (Jy km/s)  (Jy km/s)  (%)
+CO           1         0     115.180    7000.0     700.0  0
+CO           1         0     115.180    6500.0     650.0  0
+CO           2         1     230.356   36400.0    3640.0  0
+CO           3         2     345.523   54600.0    5460.0  0
+CO           4         3     460.677   58300.0    9020.0  0
+CO           5         4     575.813   62500.0    9450.0  0
+CO           6         5     690.927   60700.0    9110.0  0
+CO           7         6     806.015   53700.0    8070.0  0
+CO           8         7     921.072   48170.0    7240.0  0
+CO           9         8    1036.093   39400.0    5940.0  0
+CO          10         9    1151.075   28860.0    4380.0  0
+CO          11        10    1266.013   18790.0    2920.0  0
+CO          12        11    1380.903   13600.0    2140.0  0
+CO          13        12    1495.740       0.0    5000.0  0
+13CO         1         0     110.179     78.00      7.80  0
+13CO         2         1     220.355    545.00     54.50  0
