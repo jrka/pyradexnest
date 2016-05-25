@@ -40,6 +40,12 @@ except:
     shutil.copy2(os.path.dirname(os.path.abspath(__file__))+'/config_default.py',
           os.getcwd()+'/config.py')
     from config import *
+    
+try:
+    tbg
+except:
+    print 'tbg not defined in config file; this is a new feature. Using 2.73 K.'
+    tbg=2.73
 
 # The file to read in
 cwd=os.getcwd()

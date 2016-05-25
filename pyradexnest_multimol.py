@@ -32,6 +32,12 @@ except:
           os.getcwd()+'/config.py')
     from config import *
 
+try:
+    tbg
+except:
+    print 'tbg not defined in config file; this is a new feature. Using 2.73 K.'
+    tbg=2.73
+
 # The file to read in
 cwd=os.getcwd()
 split=cwd.rpartition('/')
