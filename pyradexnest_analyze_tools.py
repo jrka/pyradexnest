@@ -327,7 +327,6 @@ def get_dists(distfile,s,datsep,maxcind,grid_points=40):
                         x,y,z = bin_results(s,data,i,dim2=j,grid_points=grid_points,
                                         marginalization_type='sum', only_interpolate=False)
                         tdists[i,j]=np.dstack((x,y,z))
-                        print i,j,parameters[i],parameters[j]
             tdists['max']=maxes
             tdists1d['max']=maxes
             dists[key]=tdists
