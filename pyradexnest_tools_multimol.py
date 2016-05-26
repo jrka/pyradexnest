@@ -6,6 +6,9 @@ import cPickle as pickle
 import matplotlib.pyplot as plt
 
 # JRK 1/12/16: Copied from pyradexnest_tools.py for multimolecule purposes.
+# JRK 5/26/16: Fixed major bug in handling of 3+ molecules. Now the models from 
+#  RADEX are saved as dictionaries indexed by molecule (0=primary,1=first secondary, 
+#  2=second secondary...)
 
 # read in measdata ######################################################################
 def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0],n_mol=1,tbg=2.73):
@@ -132,6 +135,9 @@ def myloglike(cube, ndim, nparams):
             return -2e100
 
     # Call RADEX for the first component.
+    jup1={}
+    model1={}
+    tau1={}
     try:
         dat1=pyradex.pyradex(minfreq=1, maxfreq=1600,
                           temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
@@ -139,9 +145,9 @@ def myloglike(cube, ndim, nparams):
                           tbg=meas['tbg'], species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                           return_dict=True)
         # dat['J_up'] returned as strings; this is fine for CO...
-        jup1=np.array(map(float,dat1['J_up']))
-        model1=np.array(map(float,dat1['FLUX_Kkms']))*np.power(10,cube[3])
-        tau1=np.array(map(float,dat1['TAU']))
+        jup1[0]=np.array(map(float,dat1['J_up']))
+        model1[0]=np.array(map(float,dat1['FLUX_Kkms']))*np.power(10,cube[3])
+        tau1[0]=np.array(map(float,dat1['TAU']))
         
         # Check for convergence
         if dat1['niter']==['****']: return -2e100
@@ -164,14 +170,9 @@ def myloglike(cube, ndim, nparams):
                           collider_densities={'H2':np.power(10,cube[0])},
                           tbg=meas['tbg'], species=secmol, velocity_gradient=1.0, debug=False,
                           return_dict=True)
-            jup1=[jup1,np.array(map(float,dat1_secmol['J_up']))]
-            model1=[model1,np.array(map(float,dat1_secmol['FLUX_Kkms']))*np.power(10,cube[3])]
-            tau1=[tau1,np.array(map(float,dat1_secmol['TAU']))]
-        # Compatibility if one molecule, we need a list.
-        if n_mol==1: 
-            jup1=[jup1]
-            model1=[model1]
-            tau1=[tau1]    
+            jup1[i+1]=np.array(map(float,dat1_secmol['J_up']))
+            model1[i+1]=np.array(map(float,dat1_secmol['FLUX_Kkms']))*np.power(10,cube[3])
+            tau1[i+1]=np.array(map(float,dat1_secmol['TAU']))
                           
     except:
         if debug: return 1e3
@@ -180,15 +181,18 @@ def myloglike(cube, ndim, nparams):
     # If applicable, call RADEX for the second component and find their sum.
     # Either way, check if any optical depths are outside of our limits.
     if n_comp==2:
+        jup2={}
+        model2={}
+        tau2={}
         try:
             dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
                                temperature=np.power(10,cube[5]), column=np.power(10,cube[6]), 
                                collider_densities={'H2':np.power(10,cube[4])},
                                tbg=meas['tbg'], species=meas['head']['mol'], velocity_gradient=1.0, debug=False,
                                return_dict=True)
-            jup2=np.array(map(float,dat2['J_up']))
-            model2=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])
-            tau2=np.array(map(float,dat2['TAU']))                            
+            jup2[0]=np.array(map(float,dat2['J_up']))
+            model2[0]=np.array(map(float,dat2['FLUX_Kkms']))*np.power(10,cube[7])
+            tau2[0]=np.array(map(float,dat2['TAU']))                            
 
             # Check for convergence
             if dat2['niter']==['****']: return -2e100
@@ -199,20 +203,18 @@ def myloglike(cube, ndim, nparams):
                           collider_densities={'H2':np.power(10,cube[4])},
                           tbg=meas['tbg'], species=secmol, velocity_gradient=1.0, debug=False,
                           return_dict=True)
-                jup2=[jup2,np.array(map(float,dat2_secmol['J_up']))]
-                model2=[model2,np.array(map(float,dat2_secmol['FLUX_Kkms']))*np.power(10,cube[7])]
-                tau2=[tau2,np.array(map(float,dat2_secmol['TAU']))]
-            if n_mol==1: 
-                jup2=[jup2]
-                model2=[model2]
-                tau2=[tau2]         
+                jup2[i+1]=np.array(map(float,dat2_secmol['J_up']))
+                model2[i+1]=np.array(map(float,dat2_secmol['FLUX_Kkms']))*np.power(10,cube[7])
+                tau2[i+1]=np.array(map(float,dat2_secmol['TAU']))         
             
             # When we only had one species...     
             #modelt=model1+model2# We want to compare the SUM of the components to our data.
             #tauok=np.all([tau1<taumax,tau1>taumin,tau2<taumax,tau2>taumin],axis=0)
             # Instead, now with multiple species...
-            modelt=model1[0]+model2[0]
-            tauok=np.all([tau1[0]<taumax,tau1[0]>taumin,tau2[0]<taumax,tau2[0]>taumin],axis=0)
+            modelt={}
+            tauok={}
+            modelt[0]=model1[0]+model2[0]
+            tauok[0]=np.all([tau1[0]<taumax,tau1[0]>taumin,tau2[0]<taumax,tau2[0]>taumin],axis=0)
             for i in range(n_mol-1): 
                 modelt=[modelt,model1[i+1]+model2[i+1]]
                 tauok=[tauok,np.all([tau1[i+1]<taumax,tau1[i+1]>taumin,tau2[i+1]<taumax,tau2[i+1]>taumin],axis=0)]
@@ -235,18 +237,22 @@ def myloglike(cube, ndim, nparams):
             if debug: return 1e3
             return -2e100
     else:
+        modelt={}
+        tauok={}
         modelt=model1# total model
-        tauok=np.all([tau1[0]<taumax,tau1[0]>taumin],axis=0)
+        tauok[0]=np.all([tau1[0]<taumax,tau1[0]>taumin],axis=0)
         for i in range(n_mol-1): 
-            tauok=[tauok,np.all([tau1[i+1]<taumax,tau1[i+1]>taumin],axis=0)]
+            tauok[i+1]=np.all([tau1[i+1]<taumax,tau1[i+1]>taumin],axis=0)
             
     # Which indices are lines that we are concerned with? 
     # Like above, change these to lists.
-    juse=np.in1d(jup1[0].ravel(),meas['J_up'][meas['mol']==meas['head']['mol']]).reshape(jup1[0].shape)
-    jmeas=np.in1d(jup1[0].ravel(),meas['J_up'][np.all([meas['flux']!=0,meas['mol']==meas['head']['mol']],axis=0)]).reshape(jup1[0].shape)
+    juse={}
+    jmeas={}
+    juse[0]=np.in1d(jup1[0].ravel(),meas['J_up'][meas['mol']==meas['head']['mol']]).reshape(jup1[0].shape)
+    jmeas[0]=np.in1d(jup1[0].ravel(),meas['J_up'][np.all([meas['flux']!=0,meas['mol']==meas['head']['mol']],axis=0)]).reshape(jup1[0].shape)
     for i in range(n_mol-1):
-         juse=[juse,np.in1d(jup1[i+1].ravel(),meas['J_up'][meas['mol']==meas['head']['secmol'][i]]).reshape(jup1[i+1].shape)]
-         jmeas=[jmeas,np.in1d(jup1[i+1].ravel(),meas['J_up'][np.all([meas['flux']!=0,meas['mol']==meas['head']['secmol'][i]],axis=0)]).reshape(jup1[i+1].shape)]
+         juse[i+1]=np.in1d(jup1[i+1].ravel(),meas['J_up'][meas['mol']==meas['head']['secmol'][i]]).reshape(jup1[i+1].shape)
+         jmeas[i+1]=np.in1d(jup1[i+1].ravel(),meas['J_up'][np.all([meas['flux']!=0,meas['mol']==meas['head']['secmol'][i]],axis=0)]).reshape(jup1[i+1].shape)
     
     # Check that we have at least one line with optical depth in allowable limits, for all species
     for i in range(n_mol):
@@ -319,16 +325,16 @@ def myloglike(cube, ndim, nparams):
         cube[ndim+8]=cube[ndim+5]-cube[ndim+2]
         # SLED likelihoods for each molecule... unhappy with slice indices...
         # Cold component, all molecules
-        for mind, m in enumerate(model1):
-            for i,l in enumerate(m[0:meas['sled_to_j']]): cube[ndim+9+i+mind*sled_to_j]=l
+        for m in model1:
+            for i,l in enumerate(model1[m][0:meas['sled_to_j']]): cube[ndim+9+i+m*sled_to_j]=l
         # Warm component, all molecules
-        for mind, m in enumerate(model2):
-            for i,l in enumerate(m[0:meas['sled_to_j']]): 
-                cube[ndim+9+i+n_mol*sled_to_j+mind*sled_to_j]=l
+        for m in model2:
+            for i,l in enumerate(model2[m][0:meas['sled_to_j']]): 
+                cube[ndim+9+i+n_mol*sled_to_j+m*sled_to_j]=l
         #cube[ndim+9:]=np.append(model1[0:meas['sled_to_j']].value,model2[0:meas['sled_to_j']])
     else:
-        for mind, m in enumerate(model1):
-            for i,l in enumerate(m[0:meas['sled_to_j']]): cube[ndim+3+i+mind*sled_to_j]=l
+        for m in model1:
+            for i,l in enumerate(model1[m][0:meas['sled_to_j']]): cube[ndim+3+i+m*sled_to_j]=l
         #cube[ndim+3:ndim+3+meas['sled_to_j']]=model1[0:meas['sled_to_j']].value
     
     return loglike

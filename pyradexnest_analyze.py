@@ -11,6 +11,8 @@ from config import *
 
 # 1/14/16: Copied from pyradexnest_analyze_multimol.py
 #    Meaning to make it compatible with normal single molecule version.
+# 5/26/16: Added some keywords to plotting routines. Correctly calculate xranges
+#    for secondary species xmol parameters.
 
 #################################################################################
 
@@ -89,7 +91,16 @@ if n_comp==2:
     for i in range(4):
         xrange[i,0]=min(xrange[i,0],xrange[i+4,0])
         xrange[i,1]=max(xrange[i,1],xrange[i+4,1])
-    xrange=xrange[0:4,:]
+    for i in range(n_mol-1):
+        xrange[i+8,0]=min(xrange[i+8,0],xrange[i+8+n_mol-1,0])
+        xrange[i+8,1]=max(xrange[i+8,1],xrange[i+8+n_mol-1,1])
+    # Okay I got lazy here.
+    if n_mol==2: 
+        xrange=xrange[[0,1,2,3,8]]
+    elif n_mol==3:
+        xrange=xrange[[0,1,2,3,8,10]]
+    elif n_mol==4:
+        xrange=xrange[[0,1,2,3,8,10,12]]
 
 # Add linewidth to column density range
 xrange[2,:]+=lw
@@ -108,7 +119,7 @@ dists=get_dists(distfile,s,datsep,n_dims + np.sum(n_sec),grid_points=40)
 ######################################
 # Table.
 
-table=maketables(s,n_params,parameters,cube,add,mult,title=title,addmass=meas['addmass'],n_dims=n_dims)
+table=maketables(s,n_params,parameters,cube,add,mult,n_comp,title=title,addmass=meas['addmass'],n_dims=n_dims)
 modemed=table['Mode Mean'][0:n_params]-add      # Mass is last; not included.
 modemax=table['Mode Maximum'][0:n_params]-add
 modesig=table['Mode Sigma'][0:n_params]
@@ -143,17 +154,21 @@ if norm1:
 doplot=True
 # For now....
 if doplot:
-    plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,
+    plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,
         xr=xrange,title=title,norm1=norm1,colors=colors,simplify=simplify)    
-    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,nicenames,
+    plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,nicenames,n_mol,
         xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas,simplify=simplify)
     
     plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,title=title,simplify=simplify)
     plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,title=title,simplify=simplify)
     
     if n_mol>1:
+        molcolors=np.array(['k' for i in range(n_comp*n_mol)])
+        if n_comp==2:
+            molcolors[0:n_mol]='b'
+            molcolors[n_mol:]='r'
         plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mol,nicenames,
-                 xr=xrange,title=title,simplify=simplify)
+                colors,xr=xrange,title=title,simplify=simplify)
     
     plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,
         title=meas['head']['mol'],sled_to_j=sled_to_j,simplify=simplify)
@@ -163,11 +178,11 @@ if doplot:
     
     if sled_to_j: 
         # First, the primary molecule
-        plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,
+        plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,n_mol,
             title=title+' '+meas['head']['mol'],colors=colors,simplify=simplify,
             useind=3) # For now, do not add the molecule to filename, to keep consistent with non multi version.
         # All secondary molecules
         for i,secmol in enumerate(meas['head']['secmol']):
-            plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,
+            plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,n_mol,
                 title=title+' '+secmol,colors=colors,simplify=simplify,
                 useind=5+i,mol=secmol)            

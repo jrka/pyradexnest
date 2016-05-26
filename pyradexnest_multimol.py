@@ -80,6 +80,13 @@ np.savetxt('prior_cube.txt',[pmin,pmax],fmt='%+.3e')
 #meas=pickle.load(open("measdata.pkl","rb"))
 #plot_mass_length_limits(meas,n_dims,pmin,pmax,measdatafile=measdatafile)
 
+# Test
+#pmid=np.zeros(n_dims)+0.5
+#myprior(pmid,n_dims,n_params)
+#cube=np.zeros(n_params)
+#cube[0:n_dims]=pmid
+#print myloglike(cube, n_dims,n_params)
+
 # Still avoiding the progress plotter.
 #progress = pymultinest.ProgressPlotter(n_params = n_params, outputfiles_basename='chains/1-'); progress.start()
 #threading.Timer(2, show, ["chains/1-phys_live.points.pdf"]).start() # delayed opening
