@@ -9,34 +9,33 @@ import sys
 from pyradexnest_analyze_tools import *
 from config import *
 
-# JRK 8/13/15: Was missing title in calls to plotconditional and plotconditional2.
-# JRK 9/22/15: Don't replicate the import calls from pyradexnest_analyze_tools
-# JRK 12/16/15: Check that there are no absurd "modemean" values for radex fluxes.
-# JRK 1/14/16: Added "simplify" keyword to the calls to plotting routines.
-#    Hardcoded here, default is False. If Simplify=True, then things like the titles
-#    and other annotations are not included on the plots.
-# JRK 1/21/16: Added n_comp= 2 or 1 instead of parameterizing by dimensions.
-# JRK 5/26/16: 
+# 1/14/16: Copied from pyradexnest_analyze_multimol.py
+#    Meaning to make it compatible with normal single molecule version.
 
 #################################################################################
 
-simplify=False
+simplify=True
 
 #### LOAD THE STATS
 title=os.getcwd()
 title=title.split('/')[-1]
 
+### Backwards compatibility. Previously, config file just had n_dims.
+# Now, config file has n_comp and n_mol, from which n_dims is calculated (also included)
+try:
+    n_mol
+except:
+    n_mol=1
+    n_comp=1 if n_dims==4 else 2
+    
 # Total number of parameters: Dimensions, "Secondary Parameters", SLED Likelihoods
-if n_dims==8:
+if n_comp==2:
     n_sec=[6,3]
-    n_sled=2*sled_to_j
-    n_comp=2
+    n_sled=2*sled_to_j*n_mol
 else:
     n_sec=[3]
-    n_sled=sled_to_j
-    n_comp=1
+    n_sled=sled_to_j*n_mol
 n_params =n_dims + np.sum(n_sec) + n_sled
-n_mol=1 # For compatibility with multimol plotting
 
 meas=pickle.load(open("measdata.pkl","rb"))
 lw=np.log10(meas['head']['lw'])
@@ -61,7 +60,7 @@ nmodes=len(s['modes'])
 
 #### PLOT SETTINGS
 # Get the correct plot colors, factors to add, indices to use, etc.
-[parameters,add,mult,colors,plotinds,sledcolors]=define_plotting(n_dims,n_sec,sled_to_j,lw)
+[parameters,add,mult,colors,plotinds,sledcolors]=define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw)
 modecolors=['g','m','y','c','k','r','b']
     
 nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm$^{-2}$])',r'log($\Phi$)',
@@ -69,6 +68,9 @@ nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm
            r'log(Ratio L$_{warm}$/L$_{cold}$)',r'log(Ratio P$_{warm}$/P$_{cold}$)',r'log(Ratio <N>$_{warm}$/<N>$_{cold}$)']
 if sled_to_j:
     for x in range(sled_to_j): nicenames.append(r'Flux J='+str(x+1)+'-'+str(x)+' [K]')
+# Insert "nicenames" if multimol
+for secmol in meas['head']['secmol']:
+    tmp=nicenames.insert(4,r'X$_{'+secmol+'/'+meas['head']['mol']+'}$')
 
 # Check if we need to fix a completely absurd modemean in the fluxes from radex
 if sled_to_j: fix_flux_modemean(s,datsep,plotinds)
@@ -145,8 +147,25 @@ if doplot:
         xr=xrange,title=title,norm1=norm1,colors=colors,meas=meas,simplify=simplify)
     
     plotconditional(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,title=title,simplify=simplify)
-    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,title=title,simplify=simplify)
+    plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicenames,n_mol,title=title,simplify=simplify)
     
-    plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,title='',sled_to_j=sled_to_j,simplify=simplify)
+    if n_mol>1:
+        plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mol,nicenames,
+                 xr=xrange,title=title,simplify=simplify)
     
-    if sled_to_j: plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,title=title,colors=colors,simplify=simplify)
+    plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,
+        title=meas['head']['mol'],sled_to_j=sled_to_j,simplify=simplify)
+    for secmol in meas['head']['secmol']:
+            plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,
+                title=secmol,sled_to_j=sled_to_j,simplify=simplify,mol=secmol)   
+    
+    if sled_to_j: 
+        # First, the primary molecule
+        plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,
+            title=title+' '+meas['head']['mol'],colors=colors,simplify=simplify,
+            useind=3) # For now, do not add the molecule to filename, to keep consistent with non multi version.
+        # All secondary molecules
+        for i,secmol in enumerate(meas['head']['secmol']):
+            plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_comp,nicenames,
+                title=title+' '+secmol,colors=colors,simplify=simplify,
+                useind=5+i,mol=secmol)            

@@ -8,7 +8,7 @@ New, May 2016: pymultinest\_multimol.py (and its buddy, pyradexnest\_tools\_mult
 can be used for multiple species or isotopologue modeling (e.g. simultaneously modeling 12CO, 13CO, and C18O). 
 The code assumes these arise from the same gas conditions, with one additional free parameter per species, its relative number abundance to the primary species.
 The primary species is the one listed FIRST in the measdata.txt table.
-The analysis scripts should be compatible with output from both pyradexnest.py and pyradexnest\_multimol.py. 
+The analysis scripts should be compatible with output from both pyradexnest.py and pyradexnest\_multimol.py - NOT YET. Working on it. 
 Furthermore, pymultinest\_multimol.py should be compatible with single species modeling, if n_mol=1 is set.
 
 ===========
