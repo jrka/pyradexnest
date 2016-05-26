@@ -1,7 +1,7 @@
 import os, threading, subprocess
 import numpy as np
 #from astropy.table import Table,join
-import pyradexv3 as pyradex
+import pyradex as pyradex
 import cPickle as pickle
 import matplotlib.pyplot as plt
 

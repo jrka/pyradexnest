@@ -40,12 +40,14 @@
 # JRK 1/22/16: Two new inputs for plotmarginalsled, useind=3 and mol='' is default behavior for plotting the 
 #  primary molecule. Changing useind to 5, 6, etc. will plot the likelihoods for secondary molecules.
 #  Putting a string for mol will add the molecule name to the filename.
+# JRK 5/26/16: plotmarginalxmol had error attempting to index axes array if 
+#   it was not in fact an array (just one plot). 
 
 import numpy as np
 import astropy.units as units
 #from multiplot import multipanel
 import matplotlib.pyplot as plt
-import pyradexv3 as pyradex
+import pyradex as pyradex
 import matplotlib.mlab as mlab
 import copy
 
