@@ -49,6 +49,8 @@
 #   for marginalized2 and marginalizedsled. Added "nbyn", short function that calculates
 #   the best subplot arrangement for a given number of parameters. Add molecule abundance
 #   to secondary molecule column density when RADEX is called again for tau and tex.
+#   If luminosity was not calculated, annotate that and remote axis labels for that 
+#   plot in plotconditional2 and plotmarginal2.
 
 import numpy as np
 import astropy.units as units
@@ -637,6 +639,11 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,
             ax2a=axarr[np.mod(j-n_dims,3)].twiny()
             newx=dists['all'][j][0,:]*mult[j]+add[j]-np.log10(units.solLum.to('erg/s'))
             ax2a.plot(newx,yplot,'-',color=colors[j], drawstyle='steps')
+            if np.max(dists['all'][j][1,:])==1: # If luminosity is not calculated, public radex.
+                #axarr[np.mod(j-n_dims,3)].axis('off')
+                axarr[np.mod(j-n_dims,3)].annotate('Luminosity Not Calculated',xy=(0.1,0.5),xycoords='axes fraction')
+                [label.set_visible(False) for label in axarr[np.mod(j-n_dims,3)].get_xticklabels()] 
+                [label.set_visible(False) for label in ax2a.get_xticklabels()] 
         
         if j==n_dims+2:
             ax2b=axarr[np.mod(j-n_dims,3)].twiny()
@@ -652,7 +659,7 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,
     
     # Ranges and labels
     # mp.fix_ticks()
-    axarr[0].set_ylabel("Relative Likelihood")   
+    axarr[0].set_ylabel("Relative Likelihood")  
     [axarr[i].set_xlabel(nicenames[i+4+(n_mol-1)]) for i in [0,1,2]] 
     axarr[1].set_xlim([xr[0][0]+xr[1][0],xr[0][1]+xr[1][1]]) # x-axis ranges.
     axarr[2].set_xlim([xr[2][0]+xr[3][0],xr[2][1]+xr[3][1]])
@@ -830,6 +837,7 @@ def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
         # Remove blank boxes in upper diagonal
         if g>0: 
             for h in range(g,nx): axarr[(g-1,h)].axis('off')
+            
            
     ###### Still need to get everything aligned right.
     #mp.fix_ticks()
@@ -839,9 +847,19 @@ def plotconditional2(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nice
             #ind=(nplot)-(i-n_dims)+(j-n_dims)+(nplot-1)*(nplot-(i-n_dims))
             axarr[gridinds].set_xlim([np.min(dists['all'][i,j][:,:,1]+add[j]),np.max(dists['all'][i,j][:,:,1]+add[j])])
             axarr[gridinds].set_ylim([np.min(dists['all'][i,j][:,:,0]+add[i]),np.max(dists['all'][i,j][:,:,0]+add[i])])
+
+            # Remove if either one of these has luminosity not calculated.
+            if np.max(dists['all'][j][1,:])==np.min(dists['all'][j][1,:]):
+                axarr[gridinds].annotate('Luminosity \nNot Calculated',xy=(0.1,0.5),xycoords='axes fraction')
+                [label.set_visible(False) for label in axarr[gridinds].get_xticklabels()] 
+            if np.max(dists['all'][i][1,:])==np.min(dists['all'][i][1,:]):
+                # axarr[gridinds].axis('off') Don't do this, we might need the axis labels of the other parameter
+                [label.set_visible(False) for label in axarr[gridinds].get_yticklabels()] 
+                
             
     plt.legend(bbox_to_anchor=(0.,1.02,1.,0.102),loc=3)
     plt.draw()
+        
 
     plt.savefig('fig_conditional2.png')
     print 'Saved fig_conditional2.png'
