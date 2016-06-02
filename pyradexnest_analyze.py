@@ -66,18 +66,24 @@ nmodes=len(s['modes'])
 # Get the correct plot colors, factors to add, indices to use, etc.
 [parameters,add,mult,colors,plotinds,sledcolors]=define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw)
 modecolors=['g','m','y','c','k','r','b']
+for x in plotinds: print [parameters[y] for y in x] # A quick check of plot indices, 6/2/2016
     
 nicenames=[r'log(n$_{H2}$ [cm$^{-3}$])',r'log(T$_{kin}$ [K])',r'log(N$_{CO}$ [cm$^{-2}$])',r'log($\Phi$)',
            r'log(L[erg s$^{-1}$])',r'log(Pressure [K cm$^{-2}$])',r'log(<N$_{CO}$> [cm$^{-2}$]',
            r'log(Ratio L$_{warm}$/L$_{cold}$)',r'log(Ratio P$_{warm}$/P$_{cold}$)',r'log(Ratio <N>$_{warm}$/<N>$_{cold}$)']
 if sled_to_j:
     for x in range(sled_to_j): nicenames.append(r'Flux J='+str(x+1)+'-'+str(x)+' [K]')
-# Insert "nicenames" if multimol
-for secmol in meas['head']['secmol']:
-    tmp=nicenames.insert(4,r'X$_{'+secmol+'/'+meas['head']['mol']+'}$')
+# Insert "nicenames" if multimol. Preserve correct order! Fixed 6/2/2016
+for i,secmol in enumerate(meas['head']['secmol']):
+    tmp=nicenames.insert(4+i,r'X$_{'+secmol+'/'+meas['head']['mol']+'}$')
 
 # Check if we need to fix a completely absurd modemean in the fluxes from radex
-if sled_to_j: fix_flux_modemean(s,datsep,plotinds)
+if sled_to_j: 
+    fix_flux_modemean(s,datsep,plotinds)
+    # Addition, do this for the secondary molecules as well. 6/2/2016
+    for i,secmol in enumerate(meas['head']['secmol']):
+        print [parameters[y] for y in plotinds[5+i]]
+        fix_flux_modemean(s,datsep,plotinds,useind=5+i)
 
 # Determine plot xrange from the prior limits.
 xrange=np.ndarray([n_dims,2])
@@ -115,6 +121,19 @@ xrange[2,:]+=lw
 
 distfile='distributions.pkl'
 dists=get_dists(distfile,s,datsep,n_dims + np.sum(n_sec),grid_points=40)
+
+# Sanity check on the distributions.
+nrow,ncol,unused=nbyn(n_params)
+fig,axarr=plt.subplots(nrow,ncol,num=0,sharex=False,sharey=False)
+for x in np.arange(0,n_params):
+    ind=np.unravel_index(x,axarr.shape)
+    axarr[ind].plot(dists['all'][x][0],dists['all'][x][1])
+    axarr[ind].set_xlabel(parameters[x])
+for i in unused:
+    ind=np.unravel_index(i,axarr.shape)
+    axarr[ind].axis('off')
+fig.tight_layout()
+    
 
 ######################################
 # Table.

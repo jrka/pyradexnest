@@ -44,6 +44,10 @@
 #   it was not in fact an array (just one plot).  plotmarginal, don't include xmol 
 #   in calculation of number of dimensions (keep 2x2). plotmarginal2, correctly identify
 #   the "nicenames" index for plot x-axis labels.
+# JRK 6/2/16: Allow fix_flux_modemean to operate on secondary molecules as well, using useind
+#   keyword. Fixed fignum error for plotmarginalxmol. Fixed "nicenames" indexing errors
+#   for marginalized2 and marginalizedsled. Added "nbyn", short function that calculates
+#   the best subplot arrangement for a given number of parameters.
 
 import numpy as np
 import astropy.units as units
@@ -502,7 +506,7 @@ def plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mo
     ny=1
     plt.figure(num=6)
     plt.clf()
-    f, axarr=plt.subplots(ny,nx,num=1,sharey=True,figsize=(4*nx,4*ny))
+    f, axarr=plt.subplots(ny,nx,num=6,sharey=True,figsize=(4*nx,4*ny)) # Fixed 6/2/16, was num=1
     f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
     f.subplots_adjust(wspace=0.1)
     if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
@@ -648,7 +652,7 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,
     # Ranges and labels
     # mp.fix_ticks()
     axarr[0].set_ylabel("Relative Likelihood")   
-    [axarr[i-min([4,5,6]+np.mod(n_dims-(n_mol-1),4))].set_xlabel(nicenames[i]) for i in [4,5,6]+np.mod(n_dims-(n_mol-1),4)] 
+    [axarr[i].set_xlabel(nicenames[i+4+(n_mol-1)]) for i in [0,1,2]] 
     axarr[1].set_xlim([xr[0][0]+xr[1][0],xr[0][1]+xr[1][1]]) # x-axis ranges.
     axarr[2].set_xlim([xr[2][0]+xr[3][0],xr[2][1]+xr[3][1]])
     
@@ -665,6 +669,7 @@ def plotmarginal2(s,dists,add,mult,parameters,cube,plotinds,n_comp,n_sec,n_dims,
     plt.savefig('fig_marginalized2.png')
     print 'Saved fig_marginalized2.png'
     
+    # Plot the marginalization of the secondary parameter ratios, if 2 components.
     if n_comp==2: # JRK 1/21/16, instead of n_dims > 7, JRK 1/23/14, instead of n_dims == 8
         #mp=multipanel(dims=(1,3),figID=3,padding=(0,0),panel_size=(3,1)) #
         #if not simplify: mp.title(title,xy=(0.5,0.97))
@@ -1191,16 +1196,6 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_co
     f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
     f.subplots_adjust(wspace=0.1)
     if not simplify: axarr[0][0].annotate(title,xy=(0.535,0.97),horizontalalignment='center',xycoords='figure fraction')
-
-    #mp = multipanel(dims=dims.astype(int),figID=9,padding=(0,0.2),panel_size=dims.astype(int)) # 
-    #mp.title(title,xy=(0.5,0.97))
-    
-    #gridinds=np.mod(range(sled_to_j),nx) # wow, seriously...
-    #count=dims[1]-1
-    #for i in range(dims[1].astype(int)):
-    #    gridinds[i*dims[0]:dims[0]+i*dims[0]]+=count*dims[0]
-    #    count-=1
-    #if n_dims==8: gridinds=np.concatenate([gridinds,gridinds])
     
     for g,j in enumerate(plotinds[useind]):      
         gridinds=np.floor((np.mod(g,sled_to_j))/nx),np.mod(np.mod(g,sled_to_j),nx)
@@ -1232,7 +1227,7 @@ def plotmarginalsled(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_co
         
         if norm1: axarr[gridinds].set_ylim(0,1)
         if g<=sled_to_j-1: 
-            axarr[gridinds].set_xlabel(nicenames[np.mod(g,sled_to_j)+4+(n_mol-1)+6*(n_comp-1)])
+            axarr[gridinds].set_xlabel(nicenames[np.mod(g,sled_to_j)+4+(n_mol-1)+6]) # Fixed 6/2/16; 6 no matter what, not dep on ncomp
         if gridinds[1]==0: axarr[gridinds].set_ylabel("Relative Likelihood")
         
     if dists2:
@@ -1297,7 +1292,7 @@ def get_covariance(datsep):
     
     return cov
     
-def fix_flux_modemean(s,datsep,plotinds):
+def fix_flux_modemean(s,datsep,plotinds,useind=3):
     # Rarely, some versions of RADEX might produce a non-sensical flux for a line, e.g.
     # of the order 10^50. If such a value is included in a "mode" in parameter space,
     # the "modemean" and "modesigma" will be significantly skewed by this value, despite
@@ -1305,17 +1300,38 @@ def fix_flux_modemean(s,datsep,plotinds):
     # which are derived from the CDF.
     # modemean(x) = Sum_i (x_i * weight_i) for all points in mode.
     # modesigma(x) = SQRT (  Sum_i (x_i^2 * weight_i) - Mean^2)
+    # Added useind. Will be 3 for main molecule, but higher 5+ for secondary molecules
     nmodes=len(s['modes'])
     for m in range(nmodes):
-        fluxes=[s['modes'][m]['mean'][x] for x in plotinds[3]] # 1/21/16, was 2, should be 3
+        fluxes=[s['modes'][m]['mean'][x] for x in plotinds[useind]] # 1/21/16, was 2, should be 3
         for i, f in enumerate(fluxes):
             # Redo calculations for all fluxes.
-            x=datsep[m][:,plotinds[3][i]+2]
+            x=datsep[m][:,plotinds[useind][i]+2]
             w=datsep[m][:,0]
             good=[np.abs(x-np.median(x))<1e10]
-            print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[3][i]], s['modes'][m]['sigma'][plotinds[3][i]]
+            print 'Replaced modemean modesigma ',s['modes'][m]['mean'][plotinds[useind][i]], s['modes'][m]['sigma'][plotinds[useind][i]]
             mean=np.sum(x[good]*w[good])
             sigma=np.sqrt(np.sum(x[good]**2*w[good])-mean**2)
-            s['modes'][m]['mean'][plotinds[3][i]]=mean
-            s['modes'][m]['sigma'][plotinds[3][i]]=sigma
+            s['modes'][m]['mean'][plotinds[useind][i]]=mean
+            s['modes'][m]['sigma'][plotinds[useind][i]]=sigma
             print 'with ',mean,sigma
+            
+        
+def nbyn(nvars):
+    # nrow,ncol,unused=nbyn(nvars)
+    # For a given number of parameters (nvars) that you want to plot, determine the 
+    # ideal array configuration of plots and the indices of the ones unused.
+    # Get rid of those using: 
+    # for i in unused:
+    #    ind=np.unravel_index(i,axarr.shape)
+    #    axarr[ind].axis('off')
+    # Create your axis array using:
+    #  fig,axarr=plt.subplots(nrow,ncol,num=fignum)
+    # and then for a given parameter, the axis index is:
+    #  ind=np.unravel_index(i,axarr.shape) # Use axarr[ind]
+    
+    nrow=int(np.ceil(np.sqrt(nvars)))
+    ncol=nrow if nrow>np.mod(nrow**2,nvars) else nrow-1
+    if nvars==2: ncol=1
+
+    return nrow,ncol,range(nvars,ncol*nrow)
