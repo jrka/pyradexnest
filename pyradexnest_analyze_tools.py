@@ -47,7 +47,8 @@
 # JRK 6/2/16: Allow fix_flux_modemean to operate on secondary molecules as well, using useind
 #   keyword. Fixed fignum error for plotmarginalxmol. Fixed "nicenames" indexing errors
 #   for marginalized2 and marginalizedsled. Added "nbyn", short function that calculates
-#   the best subplot arrangement for a given number of parameters.
+#   the best subplot arrangement for a given number of parameters. Add molecule abundance
+#   to secondary molecule column density when RADEX is called again for tau and tex.
 
 import numpy as np
 import astropy.units as units
@@ -1134,15 +1135,20 @@ def plotsled(meas,cube,n_params,n_dims,n_comp,modemed,modemax,modesig,plotinds,t
     # Ugh, dat is whatever was last used, must call RADEX again...
     thiscube=cube
     thismeas=meas
-    
+    logcol1=cube[2]
+    if xmolind1!=0: logcol1+=cube[xmolind1] 
+       
     dat=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                          temperature=np.power(10,cube[1]), column=np.power(10,cube[2]), 
+                          temperature=np.power(10,cube[1]), column=np.power(10,logcol1), 
                           collider_densities={'H2':np.power(10,cube[0])},
                           tbg=meas['tbg'], species=mol, velocity_gradient=1.0, 
                           debug=False,return_dict=True)    
     
-    if n_comp==2: dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
-                           temperature=np.power(10,thiscube[5]), column=np.power(10,thiscube[6]), 
+    if n_comp==2: 
+        logcol2=cube[6]
+        if xmolind2!=0: logcol2+=cube[xmolind2]
+        dat2=pyradex.pyradex(minfreq=1, maxfreq=1600,
+                           temperature=np.power(10,thiscube[5]), column=np.power(10,logcol2), 
                            collider_densities={'H2':np.power(10,thiscube[4])},
                            tbg=meas['tbg'], species=mol, velocity_gradient=1.0, 
                            debug=False,return_dict=True)

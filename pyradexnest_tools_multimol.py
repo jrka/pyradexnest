@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 # JRK 5/26/16: Fixed major bug in handling of 3+ molecules. Now the models from 
 #  RADEX are saved as dictionaries indexed by molecule (0=primary,1=first secondary, 
 #  2=second secondary...)
+# JRK 6/2/16: Fixed major bug where 1-0 flux of each molecule was changed to 9e98
+#  even if did not suffer from the >1e100 problem from RADEX.
 
 # read in measdata ######################################################################
 def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0],n_mol=1,tbg=2.73):
@@ -306,9 +308,9 @@ def myloglike(cube, ndim, nparams):
     #  MultiNest will print 0.XYZ+100 instead of X.YZE+99, and will not be read as float.
     #  You've not used this value in your likelihood because tau will be wild as well.
     for i, m in enumerate(model1):
-        model1[i][m>9e98]=9e98
+        model1[i][np.where(model1[i]>9e98)[0]]=9e98
     if n_comp==2: 
-        for i,m in enumerate(model2): model2[i][m>9e98]=9e98
+        for i,m in enumerate(model2): model2[i][np.where(model1[i]>9e98)[0]]=9e98
 
     # If we have 2 components, also records those L, P, and BACD, as well
     # as ratios of the warm to cold (note these are in log, so they are differenced).
