@@ -98,7 +98,7 @@ optical depths above 100, where the assumptions for the escape probability metho
 More on the "myprior" function:
 - MultiNest samples all parameters from 0 to 1 in the array "cube." This function translates those to the 
 actual parameter values that you want.
-    - For a log parameter value from MIN to MAX for index i: cube[i]=cube[i]*(MAX-MIN)+MIN
+    - For a log parameter value from MIN to MAX for index i: cube[i]=cube[i]\*(MAX-MIN)+MIN
     - When you start the script, you will produce prior_cube.txt, which you can double check.
     - The first row is the minimum of each parameter. The second row is the maximum.
 - Guide to the indices of cube, all are LOG values:
@@ -114,7 +114,7 @@ actual parameter values that you want.
         - 7 = area filling of 2nd component
     - If using more than one molecule, there is one additional parameter per additional molecule per component,
     its relative abundance to the primary molecule. These come after all the other parameters, first all the cold component ones, then all the warm.
-        - For general indexing: cold component index is n_comp*4+i for i'th secondary molecule starting at 0. Warm is n_comp*4+i+n_mol-1.
+        - For general indexing: cold component index is n_comp\*4+i for i'th secondary molecule starting at 0. Warm is n_comp\*4+i+n_mol-1.
         - For example, if using 3 total molecules, with 2 components: 8 = 1st secondary molecule, cold component (xmol1c), 
         9 = 2nd secondary molecule, cold component (xmol2c), 10 = 1st secondary molecule, warm component (xmol1w). 11 = 2nd secondary molecule, warm component (xmol2w).
         - If using 2 total molecules, with 1 component: 4 = secondary molecule, cold component (xmol1c).
@@ -123,14 +123,17 @@ actual parameter values that you want.
 ```
 from pyradexnest_analyze_tools import define_plotting_multimol
 from config import * # This will import n_comp,n_mol,n_dims,sled_to_j
+# Need to calculate n_sec (number of secondary parameters) and n_sled (number of flux likelihoods)
 if n_comp==2:
     n_sec=[6,3]
     n_sled=2*sled_to_j*n_mol
 else:
     n_sec=[3]
     n_sled=sled_to_j*n_mol
+# Total number of paramters.
 n_params =n_dims + np.sum(n_sec) + n_sled
 [parameters,add,mult,colors,plotinds,sledcolors]=define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,100.0)
+# Print a list of all your parameters and their indices.
 for i,p in enumerate(parameters): print i,p,'define in "myprior" in config.py' if i<n_dims else ''
 
 ```
