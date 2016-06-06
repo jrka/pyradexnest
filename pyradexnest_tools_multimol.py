@@ -11,6 +11,8 @@ import matplotlib.pyplot as plt
 #  2=second secondary...)
 # JRK 6/2/16: Fixed major bug where 1-0 flux of each molecule was changed to 9e98
 #  even if did not suffer from the >1e100 problem from RADEX.
+# JRK 6/6/16: Fixed bug in calculating total model and tau in 2 comp (missed these
+#  from 5/26/16 update).
 
 # read in measdata ######################################################################
 def measdata_pickle(measdatafile,sled_to_j=False,taulimit=[-0.9,100.0],n_mol=1,tbg=2.73):
@@ -218,8 +220,8 @@ def myloglike(cube, ndim, nparams):
             modelt[0]=model1[0]+model2[0]
             tauok[0]=np.all([tau1[0]<taumax,tau1[0]>taumin,tau2[0]<taumax,tau2[0]>taumin],axis=0)
             for i in range(n_mol-1): 
-                modelt=[modelt,model1[i+1]+model2[i+1]]
-                tauok=[tauok,np.all([tau1[i+1]<taumax,tau1[i+1]>taumin,tau2[i+1]<taumax,tau2[i+1]>taumin],axis=0)]
+                modelt[i+1]=model1[i+1]+model2[i+1]
+                tauok[i+1]=np.all([tau1[i+1]<taumax,tau1[i+1]>taumin,tau2[i+1]<taumax,tau2[i+1]>taumin],axis=0)
             
             #R.temperature=np.power(10,cube[5])
             #R.density=np.power(10,cube[4])
