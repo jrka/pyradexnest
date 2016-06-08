@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 #  2=second secondary...)
 # JRK 6/2/16: Fixed major bug where 1-0 flux of each molecule was changed to 9e98
 #  even if did not suffer from the >1e100 problem from RADEX.
-# JRK 6/6/16: Fixed bug in calculating total model and tau in 2 comp (missed these
+# JRK 6/6/16: Fixed bug in indexing total model and tauok dictionaries in 2 comp (missed these
 #  from 5/26/16 update).
 
 # read in measdata ######################################################################

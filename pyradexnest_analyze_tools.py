@@ -424,7 +424,7 @@ def plotmarginal(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,nicename
     #mp = multipanel(dims=(np.mod(n_dims,4)/2+2,2),figID=1,padding=(0,0.2),panel_size=(1,np.mod(n_dims,4)/2+1)) # 
     #if not simplify: mp.title(title, xy=(0.5, 0.97))
     nx=2
-    ny=np.mod(n_dims-(n_mol-1),4)/2+2 # Do not add plots for xmol; plotted in plotmarginalxmol
+    ny=2 # np.mod(n_dims-(n_mol-1),4)/2+2 # Do not add plots for xmol; plotted in plotmarginalxmol
     f, axarr=plt.subplots(ny,nx,num=1,sharey=True,figsize=(4*nx,4*ny))
     f.subplots_adjust(bottom=0.08,left=0.09,right=0.98,top=0.95)
     f.subplots_adjust(wspace=0.1)
@@ -502,8 +502,9 @@ def plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mo
                  xr=[[2,6.5],[0.5,3.5],[13,23],[-3,0]],title='',norm1=True,
                  modecolors=[[0,0],[0.1,0.9],[0.2,0.5],[0.3,0.7,1]],
                  dists2={},colors2=['g','m'],cube2=[],
-                 plotinds2=0,add2=0,mult2=0,n_dims2=0,simplify=False,meas=0):
+                 plotinds2=0,add2=0,mult2=0,n_dims2=0,n_mol2=0,simplify=False,meas=0):
     import matplotlib.mlab as mlab
+    
 
     nx=n_mol-1
     ny=1
@@ -516,7 +517,7 @@ def plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mo
     
     for g,j in enumerate(plotinds[4]):   
         # If we only have 1 plot, we do NOT want gridinds.
-        #gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)
+        if nx>1: gridinds=np.mod(g,n_mol-1)
         if not dists2 and not simplify: # Don't do these if we are overplotting a 2nd dist, too confusing, or Simplify is set!
             for m,mode in enumerate(s['modes']):
                 if colors[j]=='b': 
@@ -550,20 +551,20 @@ def plotmarginalxmol(s,dists,add,mult,parameters,cube,plotinds,n_sec,n_dims,n_mo
         if nx==ny==1:
             axarr.plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
         else:
-            axarr[g].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
+            axarr[gridinds].plot(dists['all'][j][0,:]*mult[j]+add[j], yplot, '-', color=colors[j], drawstyle='steps')
             #mp.grid[gridinds[g]].axvline(x=cube[j]*mult[j]+add[j],color=colors[j],linestyle='-',label='4D Max')
       
     # Comparison distributions overplotted.  
     if dists2:
-        for g,j in enumerate(plotinds2[0]):
-            gridinds=np.floor((np.mod(g,4))/nx),np.mod(g,nx)   
+        for g,j in enumerate(plotinds2[4]):
+            gridinds=np.mod(g,n_mol2-1)
             yplot2=dists2['all'][j][1,:]
             if nx==ny==1:
                 axarr.plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
                 axarr.axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
             else:
-                axarr[g].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
-                axarr[g].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
+                axarr[gridinds].plot(dists2['all'][j][0,:]*mult2[j]+add2[j], yplot2, '-', color=colors2[j], drawstyle='steps')
+                axarr[gridinds].axvline(x=cube2[j]*mult2[j]+add2[j],color=colors2[j],linestyle='-',label='4D Max, Comparison')            
     
     # Ranges and labels
     #mp.fix_ticks()
