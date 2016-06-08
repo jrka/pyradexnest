@@ -124,15 +124,17 @@ dists=get_dists(distfile,s,datsep,n_dims + np.sum(n_sec),grid_points=40)
 
 # Sanity check on the distributions.
 nrow,ncol,unused=nbyn(n_params)
-fig,axarr=plt.subplots(nrow,ncol,num=0,sharex=False,sharey=False)
+fig,axarr=plt.subplots(nrow,ncol,num=0,sharex=False,sharey=False,figsize=(4*ncol,4*nrow))
 for x in np.arange(0,n_params):
     ind=np.unravel_index(x,axarr.shape)
-    axarr[ind].plot(dists['all'][x][0],dists['all'][x][1])
+    axarr[ind].plot(dists['all'][x][0],dists['all'][x][1],color=colors[x])
     axarr[ind].set_xlabel(parameters[x])
 for i in unused:
     ind=np.unravel_index(i,axarr.shape)
     axarr[ind].axis('off')
 fig.tight_layout()
+fig.savefig('fig_raw.png')
+print 'Saved fig_raw.png'
     
 
 ######################################

@@ -105,7 +105,7 @@ def define_plotting_multimol(n_comp,n_mol,n_dims,n_sec,n_params,sled_to_j,lw,com
         colors[[n_comp*4+(n_mol-1)+i for i in range(n_mol-1)]]=wcolor # Xmol
         colors[[n_dims+i for i in range(3,6)]]=wcolor # Secondary parameters
         colors[[n_dims+i for i in range(6,9)]]=rcolor # Ratios
-        colors[[n_dims+9+sled_to_j*n_mol+i for i in range(sled_to_j)]]=wcolor # Flux likelihoods
+        colors[[n_dims+9+sled_to_j*n_mol+i for i in range(sled_to_j*n_mol)]]=wcolor # Flux likelihoods
 
         sledcolors=['b','r'] if not compare else ['#6495ED','m'] 
         
