@@ -11,6 +11,9 @@ The primary species is the one listed FIRST in the measdata.txt table.
 The analysis scripts should be compatible with output from both pyradexnest.py and pyradexnest\_multimol.py.
 Furthermore, pymultinest\_multimol.py should be compatible with single species modeling, if n_mol=1 is set.
 
+As of January 2018, please cite using this DOI:
+[![DOI](https://zenodo.org/badge/14212425.svg)](https://zenodo.org/badge/latestdoi/14212425)
+
 ===========
 ## You need:
 
